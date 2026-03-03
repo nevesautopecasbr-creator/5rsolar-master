@@ -17,10 +17,10 @@ type WorkDelayJob = {
 @Injectable()
 export class JobsService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(JobsService.name);
-  private billingQueue!: Queue<ReminderJob>;
-  private workDelayQueue!: Queue<WorkDelayJob>;
-  private billingWorker!: Worker<ReminderJob>;
-  private workDelayWorker!: Worker<WorkDelayJob>;
+  private billingQueue?: Queue<ReminderJob>;
+  private workDelayQueue?: Queue<WorkDelayJob>;
+  private billingWorker?: Worker<ReminderJob>;
+  private workDelayWorker?: Worker<WorkDelayJob>;
   private scheduleHandle?: NodeJS.Timeout;
 
   constructor(
@@ -29,13 +29,26 @@ export class JobsService implements OnModuleInit, OnModuleDestroy {
   ) {}
 
   async onModuleInit() {
-    const redisUrl = process.env.REDIS_URL ?? "redis://localhost:6379";
-    const url = new URL(redisUrl);
-    const connection = {
-      host: url.hostname,
-      port: Number(url.port || 6379),
-      password: url.password || undefined,
-    };
+    const redisUrl = process.env.REDIS_URL?.trim();
+    if (!redisUrl) {
+      this.logger.warn(
+        "REDIS_URL não configurado: filas de jobs (lembretes/atrasos) desativadas. Para ativar, use ex.: Upstash Redis e defina REDIS_URL.",
+      );
+      return;
+    }
+
+    let connection: { host: string; port: number; password?: string };
+    try {
+      const url = new URL(redisUrl);
+      connection = {
+        host: url.hostname,
+        port: Number(url.port || 6379),
+        password: url.password || undefined,
+      };
+    } catch {
+      this.logger.warn("REDIS_URL inválido; jobs desativados.");
+      return;
+    }
 
     this.billingQueue = new Queue("billing-reminders", { connection });
     this.workDelayQueue = new Queue("work-delay-alerts", { connection });
@@ -110,6 +123,7 @@ export class JobsService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async scheduleBillingReminders() {
+    if (!this.billingQueue) return;
     const receivables = await this.prisma.receivable.findMany({
       where: {
         status: { in: [ReceivableStatus.OPEN, ReceivableStatus.OVERDUE] },
@@ -140,6 +154,7 @@ export class JobsService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async scheduleWorkDelayAlerts() {
+    if (!this.workDelayQueue) return;
     const overdueWorkOrders = await this.prisma.workOrder.findMany({
       where: {
         status: { notIn: [WorkOrderStatus.COMPLETED, WorkOrderStatus.CANCELLED] },
