@@ -156,4 +156,39 @@ O Web usa `NEXT_PUBLIC_API_URL` em `lib/api.ts` e nas rotas de API. Com essa var
 
 Depois de ajustar as duas variáveis e redeployar o Web, login, logout e demais chamadas à API devem funcionar.
 
+---
+
+## CORS: preflight OPTIONS sem status 2xx (logout bloqueado)
+
+**Sintoma:** No console: `Access to fetch at 'https://...-api.vercel.app/api/auth/logout' from origin 'https://...-web.vercel.app' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: It does not have HTTP ok status`, seguido de `POST ... net::ERR_FAILED` e `TypeError: Failed to fetch`.
+
+**Causa:** O navegador envia um preflight **OPTIONS** antes do POST. Se a API responder ao OPTIONS com status diferente de 2xx (ex.: 404), o navegador bloqueia o POST.
+
+**O que foi feito na API:** Foi adicionado o **middleware** `CorsPreflightMiddleware` (`apps/api/src/cors-preflight.middleware.ts`), registrado em `AppModule` para todas as rotas (`*`). Esse middleware:
+
+1. Define os headers CORS em toda resposta (incluindo `Access-Control-Allow-Origin`, `Access-Control-Allow-Methods`, `Access-Control-Allow-Headers`, `Access-Control-Allow-Credentials`).
+2. Para requisições **OPTIONS**, responde imediatamente com **204** (No Content), sem passar para as rotas. Assim o preflight sempre recebe status 2xx e o navegador libera o POST.
+
+Após um novo deploy da API, o logout e outras requisições que disparam preflight (POST/PUT com headers customizados) devem funcionar. Se o frontend usar outro domínio, altere a constante `ALLOWED_ORIGIN` no middleware para a URL do Web.
+
+---
+
+## Requisição indo para URL errada (3rsular, .sp, /sp/…)
+
+**Sintoma:** No console aparece algo como `POST https://3rsular-api.vercel.sp/sp/auth/logout net::ERR_FAILED` ou "Failed to fetch". A URL está com domínio ou caminho errados.
+
+**Causa:** O valor de **`NEXT_PUBLIC_API_URL`** no projeto **Web** na Vercel está incorreto (typo, .sp em vez de .app, 3 em vez de 5, ou path a mais).
+
+**Correção:**
+
+1. Abra o projeto **Web** na Vercel → **Settings** → **Environment Variables**.
+2. Edite **`NEXT_PUBLIC_API_URL`** e deixe **exatamente** assim (ajuste só se sua API tiver outra URL):
+   - **Valor:** `https://5rsolar-api.vercel.app`
+   - **Sem** barra no final.
+   - **Sem** caminho (nada depois de `.app`).
+   - Domínio com **5** (cinco), não 3 ou “s” (ex.: `5rsolar-api`, não `3rsular-api`).
+   - TLD **`.app`**, não `.sp` (ex.: `vercel.app`).
+3. Salve e faça um **novo deploy** do Web (Redeploy). Variáveis `NEXT_PUBLIC_*` só entram no build no próximo deploy.
+4. Confira a URL real da API em **Deployments** do projeto da API (ex.: `https://5rsolar-api.vercel.app`) e use essa mesma URL em `NEXT_PUBLIC_API_URL`.
+
 Se seguir esse passo a passo, o ambiente sobe no Vercel (API + Web) e continua usando o banco que já está funcionando no Supabase, com o sistema funcional de ponta a ponta.
