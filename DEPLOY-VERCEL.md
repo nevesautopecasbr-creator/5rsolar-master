@@ -25,7 +25,7 @@ Este guia explica como subir o **Web** (Next.js) e a **API** (NestJS) no Vercel 
 
 ### 1.1 Conectar o repositório ao Vercel (projeto API)
 
-**Importante:** O projeto da API usa **pnpm** a partir da raiz do monorepo (não use npm nem `package-lock.json` em `apps/api`). Para o pnpm funcionar na Vercel, é **obrigatório** definir **Node.js Version = 20.x** no dashboard (Settings → General). Sem isso o build falha com `ERR_INVALID_THIS`.
+**Solução definitiva:** O projeto da API usa **apenas npm** na Vercel (sem pnpm), para evitar o erro `ERR_INVALID_THIS`. O `vercel.json` em `apps/api` define `npm install --ignore-scripts` e `npm run build`; tudo roda dentro de `apps/api`, sem depender da raiz do monorepo nem da versão do Node no dashboard.
 
 1. Acesse [vercel.com/new](https://vercel.com/new).
 2. **Import** o repositório do projeto.
@@ -33,10 +33,9 @@ Este guia explica como subir o **Web** (Next.js) e a **API** (NestJS) no Vercel 
    - **Project Name**: ex. `energia-solar-api`.
    - **Root Directory**: clique em **Edit** e selecione **`apps/api`** (só a pasta da API).
    - **Framework Preset**: Vercel deve detectar NestJS; se não, use **Other**.
-   - **Node.js Version**: em **Settings → General**, defina **20.x**. **Obrigatório** (evita erro do pnpm).
-   - **Install Command** e **Build Command**: deixe em branco (o `vercel.json` em `apps/api` usa `cd ../.. && pnpm install` e `pnpm --filter @erp/api build`).
+   - **Install Command** e **Build Command**: deixe em branco (o `vercel.json` em `apps/api` já define: `npm install --ignore-scripts` e `npm run build`).
    - **Output Directory**: deixe em branco (NestJS não gera pasta `out`).
-4. Antes do primeiro deploy, vá em **Settings → General** e confirme **Node.js Version: 20.x**. Depois faça **Redeploy** com **Clear cache and redeploy**.
+4. **Não** use "Override" no dashboard para Install/Build a menos que queira forçar npm: o `vercel.json` já faz isso.
 
 ### 1.2 Variáveis de ambiente da API
 
@@ -58,11 +57,8 @@ Em **Settings → Environment Variables** do projeto da API, adicione:
 ### 1.3 Build da API no Vercel
 
 - O NestJS usa `src/main.ts` como entrypoint; a Vercel detecta automaticamente.
-- O `vercel.json` em `apps/api` faz o install e o build **na raiz do monorepo** (`pnpm install` e `pnpm --filter @erp/api build`), usando o Node 20 definido no `package.json` da raiz. O script `build` da API já inclui `prisma generate && nest build`.
-
-**Se o build falhar com erro `ERR_INVALID_THIS` ou `URLSearchParams`:**
-1. Em **Settings → General**, defina **Node.js Version** para **20.x**.
-2. Em **Deployments**, use **Redeploy** com a opção **Clear cache and redeploy** (ou equivalente).
+- O `vercel.json` em `apps/api` força **npm** (não pnpm): `npm install --ignore-scripts` instala as dependências só em `apps/api`; `npm run build` roda `prisma generate && nest build`. Assim o build não depende do Node 20 nem do monorepo e evita o erro `ERR_INVALID_THIS`.
+- Se no dashboard da Vercel estiver definido **Install Command** ou **Build Command** (override), apague ou deixe em branco para usar o que está no `vercel.json`.
 
 ### 1.4 Anotar a URL da API
 
