@@ -4,7 +4,7 @@
   "version": "0.0.1",
   "scripts": {
     "dev": "nest start --watch",
-    "build": "node_modules/.bin/prisma generate && node_modules/.bin/nest build",
+    "build": "npx prisma@5.18.0 generate && npx --package=@nestjs/cli@10.4.2 nest build",
     "lint": "eslint .",
     "format": "prettier --check .",
     "typecheck": "tsc -p tsconfig.json --noEmit",
