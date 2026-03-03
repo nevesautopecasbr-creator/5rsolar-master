@@ -25,15 +25,18 @@ Este guia explica como subir o **Web** (Next.js) e a **API** (NestJS) no Vercel 
 
 ### 1.1 Conectar o repositório ao Vercel (projeto API)
 
+**Importante:** O projeto da API usa **pnpm** a partir da raiz do monorepo (não use npm nem `package-lock.json` em `apps/api`). Para o pnpm funcionar na Vercel, é **obrigatório** definir **Node.js Version = 20.x** no dashboard (Settings → General). Sem isso o build falha com `ERR_INVALID_THIS`.
+
 1. Acesse [vercel.com/new](https://vercel.com/new).
 2. **Import** o repositório do projeto.
 3. **Configure assim**:
    - **Project Name**: ex. `energia-solar-api`.
    - **Root Directory**: clique em **Edit** e selecione **`apps/api`** (só a pasta da API).
    - **Framework Preset**: Vercel deve detectar NestJS; se não, use **Other**.
-   - **Node.js Version**: em **Settings → General**, defina **20.x** (evita erro `ERR_INVALID_THIS` do pnpm). **Obrigatório.**
-   - **Install Command** e **Build Command**: deixe em branco para usar o `vercel.json` de `apps/api`, que já roda o install e o build a partir da **raiz do monorepo** (Node 20 do `package.json` da raiz).
+   - **Node.js Version**: em **Settings → General**, defina **20.x**. **Obrigatório** (evita erro do pnpm).
+   - **Install Command** e **Build Command**: deixe em branco (o `vercel.json` em `apps/api` usa `cd ../.. && pnpm install` e `pnpm --filter @erp/api build`).
    - **Output Directory**: deixe em branco (NestJS não gera pasta `out`).
+4. Antes do primeiro deploy, vá em **Settings → General** e confirme **Node.js Version: 20.x**. Depois faça **Redeploy** com **Clear cache and redeploy**.
 
 ### 1.2 Variáveis de ambiente da API
 
