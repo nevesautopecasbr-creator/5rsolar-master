@@ -31,10 +31,9 @@ Este guia explica como subir o **Web** (Next.js) e a **API** (NestJS) no Vercel 
    - **Project Name**: ex. `energia-solar-api`.
    - **Root Directory**: clique em **Edit** e selecione **`apps/api`** (só a pasta da API).
    - **Framework Preset**: Vercel deve detectar NestJS; se não, use **Other**.
-   - **Build Command**: `pnpm install && pnpm exec prisma generate && pnpm run build`  
-     (ou `npm run build` se usar npm na raiz do monorepo — ajuste conforme seu `package.json` em `apps/api`).
+   - **Node.js Version**: em **Settings → General**, defina **20.x** (evita erro `ERR_INVALID_THIS` do pnpm). **Obrigatório.**
+   - **Install Command** e **Build Command**: deixe em branco para usar o `vercel.json` de `apps/api`, que já roda o install e o build a partir da **raiz do monorepo** (Node 20 do `package.json` da raiz).
    - **Output Directory**: deixe em branco (NestJS não gera pasta `out`).
-   - **Install Command**: `pnpm install` (ou `npm install`).
 
 ### 1.2 Variáveis de ambiente da API
 
@@ -56,16 +55,11 @@ Em **Settings → Environment Variables** do projeto da API, adicione:
 ### 1.3 Build da API no Vercel
 
 - O NestJS usa `src/main.ts` como entrypoint; a Vercel detecta automaticamente.
-- O build deve rodar **Prisma generate** antes do `nest build`. No `package.json` de `apps/api` já existe `nest build`; garanta que o **Build Command** no Vercel inclua:
-  - `pnpm install` (ou `npm install`)
-  - `pnpm exec prisma generate` (ou `npx prisma generate`)
-  - `pnpm run build` (ou `npm run build`)
+- O `vercel.json` em `apps/api` faz o install e o build **na raiz do monorepo** (`pnpm install` e `pnpm --filter @erp/api build`), usando o Node 20 definido no `package.json` da raiz. O script `build` da API já inclui `prisma generate && nest build`.
 
-Se o build falhar por “prisma generate”, use como **Build Command**:
-
-```bash
-pnpm install && pnpm exec prisma generate && pnpm run build
-```
+**Se o build falhar com erro `ERR_INVALID_THIS` ou `URLSearchParams`:**
+1. Em **Settings → General**, defina **Node.js Version** para **20.x**.
+2. Em **Deployments**, use **Redeploy** com a opção **Clear cache and redeploy** (ou equivalente).
 
 ### 1.4 Anotar a URL da API
 
