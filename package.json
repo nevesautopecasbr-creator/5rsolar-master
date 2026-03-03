@@ -2,6 +2,9 @@
   "name": "erp-energia-solar",
   "private": true,
   "packageManager": "pnpm@9.12.0",
+  "engines": {
+    "node": "20.x"
+  },
   "scripts": {
     "dev": "pnpm -r dev",
     "dev:api": "pnpm --filter @erp/api dev",
