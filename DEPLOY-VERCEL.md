@@ -65,6 +65,7 @@ Em **Settings → Environment Variables** do projeto da API, adicione:
 Após o primeiro deploy, a API ficará em algo como:
 
 - `https://energia-solar-api.vercel.app`
+  "https://5rsolar-mxvjbad5n-itallo-neves-projects.vercel.app/"
 
 **Guarde essa URL** — você vai usar no frontend como `NEXT_PUBLIC_API_URL`.
 
@@ -129,5 +130,30 @@ O Web usa `NEXT_PUBLIC_API_URL` em `lib/api.ts` e nas rotas de API. Com essa var
 - **Redis**: Se não configurar `REDIS_URL`, a API sobe normalmente; apenas os jobs em background (lembretes de cobrança e alertas de atraso de obra) ficam desativados. Para ativar em produção, use [Upstash Redis](https://upstash.com) e defina `REDIS_URL`.
 - **Uploads**: A API usa pasta local `uploads`. Na Vercel o sistema de arquivos é efêmero; para produção com arquivos persistentes, considere depois integrar **Vercel Blob** ou **S3** (Supabase Storage).
 - **Preview (branch)**: Em deploys de preview, defina `NEXT_PUBLIC_API_URL` e `WEB_ORIGIN` para a URL de preview da API, se quiser testar branchs diferentes.
+
+---
+
+## Web e API não conversando (logout/login falha, Failed to fetch)
+
+**Sintoma:** No console do navegador aparece `POST https://seu-web.vercel.app/api/auth/logout net::ERR_FAILED` ou "Failed to fetch" — a requisição vai para o domínio do **Web** em vez do domínio da **API**.
+
+**Causa:** A variável `NEXT_PUBLIC_API_URL` no projeto **Web** está vazia ou apontando para a URL do próprio frontend.
+
+**Correção:**
+
+1. **Projeto Web na Vercel** → **Settings** → **Environment Variables**
+   - Confirme que existe **`NEXT_PUBLIC_API_URL`**.
+   - O valor deve ser **exatamente** a URL do projeto da **API** (ex.: `https://energia-solar-api.vercel.app` ou a URL que a API usa na Vercel).
+   - **Sem barra no final.** Marque **Production** (e Preview se for usar).
+   - Salve e faça um **novo deploy** do Web (variáveis `NEXT_PUBLIC_*` entram no build; mudou variável = redeploy).
+
+2. **Projeto API na Vercel** → **Settings** → **Environment Variables**
+   - Confirme que **`WEB_ORIGIN`** é a URL do **frontend** (ex.: `https://5rsolar-web.vercel.app` ou a URL do seu projeto Web).
+   - Assim a API aceita requisições do navegador vindo desse domínio (CORS e cookies).
+
+3. **CORS no `vercel.json` da API**  
+   O `apps/api/vercel.json` já inclui headers CORS com a origem `https://5rsolar-web.vercel.app`. Se o seu frontend usar **outra URL** (outro subdomínio ou domínio próprio), edite esse arquivo e altere o valor de `Access-Control-Allow-Origin` para a URL exata do seu Web (ex.: `https://seu-dominio.com`). Depois faça um novo deploy da API.
+
+Depois de ajustar as duas variáveis e redeployar o Web, login, logout e demais chamadas à API devem funcionar.
 
 Se seguir esse passo a passo, o ambiente sobe no Vercel (API + Web) e continua usando o banco que já está funcionando no Supabase, com o sistema funcional de ponta a ponta.
