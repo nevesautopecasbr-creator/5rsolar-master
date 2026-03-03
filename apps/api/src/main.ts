@@ -18,6 +18,7 @@ async function bootstrap() {
   const allowedOrigins = new Set<string>([
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    "https://5rsolar-web.vercel.app",
     ...envOrigins,
   ]);
 
@@ -35,6 +36,8 @@ async function bootstrap() {
       return callback(new Error("Not allowed by CORS"));
     },
     credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "x-company-id", "Cookie"],
   });
   app.use(cookieParser());
   app.useStaticAssets(join(process.cwd(), process.env.STORAGE_LOCAL_DIR ?? "uploads"), {
