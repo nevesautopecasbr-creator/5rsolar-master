@@ -24,13 +24,16 @@ module.exports = function (req, res) {
   const fullPath = path.indexOf("?") >= 0 ? path.slice(0, path.indexOf("?")) : path;
   if (process.env.VERCEL) console.log("[api/index] fullPath=" + fullPath);
   const search = path.indexOf("?") >= 0 ? path.slice(path.indexOf("?")) : "";
-  const parsedUrl = { pathname: fullPath, path: fullPath, search, query: {} };
   const wrapped = new Proxy(req, {
     get(target, prop) {
-      if (prop === "url") return fullPath;
+      const stripped = typeof target.url === "string" && target.url !== "" && target.url.indexOf("?") < 0 && target.url !== fullPath ? target.url : null;
+      if (prop === "url") return stripped != null ? stripped : fullPath;
       if (prop === "originalUrl") return fullPath;
-      if (prop === "path") return fullPath;
-      if (prop === "_parsedUrl" || prop === "_parsedOriginalUrl") return parsedUrl;
+      if (prop === "path") return stripped != null ? stripped : fullPath;
+      if (prop === "_parsedUrl" || prop === "_parsedOriginalUrl") {
+        const p = stripped != null ? stripped : fullPath;
+        return { pathname: p, path: p, search, query: {} };
+      }
       return target[prop];
     },
   });
