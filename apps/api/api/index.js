@@ -18,11 +18,14 @@ module.exports = function (req, res) {
   const path = getPath(req);
   if (!path || path === "/api") return handler(req, res);
   const pathOnly = path.indexOf("?") >= 0 ? path.slice(0, path.indexOf("?")) : path;
+  const search = path.indexOf("?") >= 0 ? path.slice(path.indexOf("?")) : "";
+  const parsedUrl = { pathname: pathOnly, path: pathOnly, search, query: {} };
   const wrapped = new Proxy(req, {
     get(target, prop) {
       if (prop === "url") return path;
       if (prop === "originalUrl") return path;
       if (prop === "path") return pathOnly;
+      if (prop === "_parsedUrl" || prop === "_parsedOriginalUrl") return parsedUrl;
       return target[prop];
     },
   });
