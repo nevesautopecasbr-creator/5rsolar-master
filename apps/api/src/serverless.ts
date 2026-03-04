@@ -43,7 +43,7 @@ async function getExpressApp(): Promise<(req: Request, res: Response) => void> {
     const expressApp = app.getHttpAdapter().getInstance() as any;
     if (process.env.VERCEL && expressApp._router && Array.isArray(expressApp._router.stack)) {
       const Layer = require("express/lib/router/layer");
-      const layer = new (Layer as any)("/", {}, vercelPathMiddleware);
+      const layer = new (Layer as any)("*", {}, vercelPathMiddleware);
       expressApp._router.stack.unshift(layer);
     }
     cachedExpressApp = expressApp;
