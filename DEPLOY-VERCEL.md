@@ -56,11 +56,11 @@ Em **Settings → Environment Variables** do projeto da API, adicione:
 
 ### 1.3 Build da API no Vercel (serverless)
 
-- Na Vercel a API roda como **função serverless**, não como servidor contínuo. O `vercel.json` em `apps/api` define:
-  - **builds**: entrada em `dist/src/serverless.js` (gerado pelo `nest build` a partir de `src/serverless.ts`).
-  - **routes**: todas as requisições (`GET`, `POST`, `PUT`, `PATCH`, `DELETE`, **OPTIONS**, `HEAD`) para `/(.*)` são enviadas a essa função, que repassa ao app Nest (Express). Assim `/api/auth/login`, `/api/auth/logout` e demais rotas passam a responder corretamente (evitando 404).
-- O `vercel.json` também força **npm**: `npm install --ignore-scripts` e `npm run build` (`prisma generate && nest build`). O build gera `dist/` e inclui `dist/src/serverless.js`.
-- Em ambiente local, a API continua sendo iniciada com `npm run dev` / `main.ts` (usa `app.listen()`). Em produção na Vercel, o tráfego é atendido pelo handler em `serverless.ts`.
+- Na Vercel a API roda como **função serverless**:
+  - **`api/index.js`**: entrypoint que carrega o handler de `dist/src/serverless.js` (gerado pelo `nest build`). A Vercel descobre funções na pasta `api/` automaticamente.
+  - **`vercel.json`** usa **rewrites**: `"source": "/(.*)", "destination": "/api"` para que todas as requisições (incluindo `/api/auth/login`, `/api/auth/logout`, OPTIONS, etc.) sejam atendidas pela mesma função em `/api`, evitando 404. Não use mais `builds`/`routes` (configuração legada).
+- O `vercel.json` força **npm**: `npm install --ignore-scripts` e `npm run build` (`prisma generate && nest build`). O build gera `dist/`; o handler em `api/index.js` faz `require('../dist/src/serverless').default`.
+- Em ambiente local, a API continua com `npm run dev` / `main.ts`. Em produção na Vercel, o tráfego vai para `api/index.js` → handler Nest.
 - Se no dashboard da Vercel estiver definido **Install Command** ou **Build Command** (override), apague ou deixe em branco para usar o que está no `vercel.json`.
 
 ### 1.4 Anotar a URL da API
