@@ -9,13 +9,16 @@ const handler = require("../dist/src/serverless").default;
 function getPathFromRequest(req) {
   const rawUrl = req.url || "";
   const parsed = parse(rawUrl, true);
-  const pathFromQuery = parsed.query && parsed.query.path;
+  const query = parsed.query || req.query || {};
+  const pathFromQuery = query.path;
   if (pathFromQuery) {
     const s = typeof pathFromQuery === "string" ? pathFromQuery : pathFromQuery[0];
     return s ? (s.startsWith("/") ? s : "/" + s) : null;
   }
   const pathFromHeader =
-    req.headers["x-invoke-path"] || req.headers["x-vercel-original-url"];
+    req.headers["x-invoke-path"] ||
+    req.headers["x-vercel-original-url"] ||
+    req.headers["x-url"];
   if (pathFromHeader) {
     try {
       const p = pathFromHeader.startsWith("/") ? pathFromHeader : "/" + pathFromHeader;
@@ -34,6 +37,7 @@ module.exports = function (req, res) {
   const path = getPathFromRequest(req);
   if (path) {
     req.url = path;
+    if (typeof req.originalUrl !== "undefined") req.originalUrl = path;
   }
   handler(req, res);
 };
