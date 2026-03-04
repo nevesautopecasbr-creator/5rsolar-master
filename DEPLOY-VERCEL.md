@@ -54,10 +54,13 @@ Em **Settings → Environment Variables** do projeto da API, adicione:
 
 - Marque essas variáveis para **Production** (e Preview se quiser).
 
-### 1.3 Build da API no Vercel
+### 1.3 Build da API no Vercel (serverless)
 
-- O NestJS usa `src/main.ts` como entrypoint; a Vercel detecta automaticamente.
-- O `vercel.json` em `apps/api` força **npm** (não pnpm): `npm install --ignore-scripts` instala as dependências só em `apps/api`; `npm run build` roda `prisma generate && nest build`. Assim o build não depende do Node 20 nem do monorepo e evita o erro `ERR_INVALID_THIS`.
+- Na Vercel a API roda como **função serverless**, não como servidor contínuo. O `vercel.json` em `apps/api` define:
+  - **builds**: entrada em `dist/src/serverless.js` (gerado pelo `nest build` a partir de `src/serverless.ts`).
+  - **routes**: todas as requisições (`GET`, `POST`, `PUT`, `PATCH`, `DELETE`, **OPTIONS**, `HEAD`) para `/(.*)` são enviadas a essa função, que repassa ao app Nest (Express). Assim `/api/auth/login`, `/api/auth/logout` e demais rotas passam a responder corretamente (evitando 404).
+- O `vercel.json` também força **npm**: `npm install --ignore-scripts` e `npm run build` (`prisma generate && nest build`). O build gera `dist/` e inclui `dist/src/serverless.js`.
+- Em ambiente local, a API continua sendo iniciada com `npm run dev` / `main.ts` (usa `app.listen()`). Em produção na Vercel, o tráfego é atendido pelo handler em `serverless.ts`.
 - Se no dashboard da Vercel estiver definido **Install Command** ou **Build Command** (override), apague ou deixe em branco para usar o que está no `vercel.json`.
 
 ### 1.4 Anotar a URL da API
