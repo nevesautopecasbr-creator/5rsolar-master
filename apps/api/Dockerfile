@@ -11,7 +11,7 @@ RUN npm ci
 FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN npm run build
+RUN npm run build && (test -f dist/main.js || test -f dist/src/main.js) || (echo "Build output:" && ls -la dist/ 2>/dev/null; ls -la dist/src/ 2>/dev/null; exit 1)
 
 # Produção: copia app completo do builder (dist + node_modules + prisma)
 FROM base AS runner
@@ -19,5 +19,4 @@ ENV NODE_ENV=production
 COPY --from=builder /app ./
 
 EXPOSE 3000
-# Nest pode gerar dist/main.js ou dist/src/main.js conforme tsconfig
-CMD ["sh", "-c", "node dist/src/main.js 2>/dev/null || node dist/main.js"]
+CMD ["node", "dist/main.js"]
