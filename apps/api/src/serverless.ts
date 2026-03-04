@@ -6,7 +6,16 @@ let cachedExpressApp: ((req: Request, res: Response) => void) | null = null;
 async function getExpressApp(): Promise<(req: Request, res: Response) => void> {
   if (!cachedExpressApp) {
     const app = await createApp();
-    cachedExpressApp = app.getHttpAdapter().getInstance();
+    const expressApp = app.getHttpAdapter().getInstance() as any;
+    if (process.env.VERCEL && expressApp._router && Array.isArray(expressApp._router.stack)) {
+      const Layer = require("express/lib/router/layer");
+      const logLayer = new (Layer as any)("*", {}, (req: any, _res: any, next: () => void) => {
+        console.log("[Nest/Express] req.url=" + (req?.url ?? "") + " req.path=" + (req?.path ?? "") + " method=" + (req?.method ?? ""));
+        next();
+      });
+      expressApp._router.stack.unshift(logLayer);
+    }
+    cachedExpressApp = expressApp;
   }
   return cachedExpressApp!;
 }
