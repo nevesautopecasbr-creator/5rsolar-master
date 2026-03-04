@@ -22,15 +22,14 @@ module.exports = function (req, res) {
   }
   if (!path || path === "/api") return handler(req, res);
   const fullPath = path.indexOf("?") >= 0 ? path.slice(0, path.indexOf("?")) : path;
-  const pathForRouter = fullPath.startsWith("/api") ? fullPath.slice(4) || "/" : fullPath;
-  if (process.env.VERCEL) console.log("[api/index] pathForRouter=" + pathForRouter);
+  if (process.env.VERCEL) console.log("[api/index] fullPath=" + fullPath);
   const search = path.indexOf("?") >= 0 ? path.slice(path.indexOf("?")) : "";
-  const parsedUrl = { pathname: pathForRouter, path: pathForRouter, search, query: {} };
+  const parsedUrl = { pathname: fullPath, path: fullPath, search, query: {} };
   const wrapped = new Proxy(req, {
     get(target, prop) {
-      if (prop === "url") return pathForRouter;
-      if (prop === "originalUrl") return pathForRouter;
-      if (prop === "path") return pathForRouter;
+      if (prop === "url") return fullPath;
+      if (prop === "originalUrl") return fullPath;
+      if (prop === "path") return fullPath;
       if (prop === "_parsedUrl" || prop === "_parsedOriginalUrl") return parsedUrl;
       return target[prop];
     },
