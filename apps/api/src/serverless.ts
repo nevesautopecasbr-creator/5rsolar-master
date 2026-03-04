@@ -3,56 +3,64 @@ import { createApp } from "./app.factory";
 
 let cachedExpressApp: ((req: Request, res: Response) => void) | null = null;
 
-async function getExpressApp(): Promise<(req: Request, res: Response) => void> {
-  if (!cachedExpressApp) {
-    const app = await createApp();
-    cachedExpressApp = app.getHttpAdapter().getInstance();
-  }
-  return cachedExpressApp;
-}
-
 /** Lê path da query em req.url (rewrite Vercel: /api?path=/api/auth/login) */
-function getPathFromReq(req: Request): string | null {
-  const raw = (req as any).url ?? (req as any).originalUrl ?? "";
-  const idx = raw.indexOf("?");
-  const search = idx >= 0 ? raw.slice(idx) : "";
+function getPathFromQuery(rawUrl: string): string | null {
+  const idx = rawUrl.indexOf("?");
+  const search = idx >= 0 ? rawUrl.slice(idx) : "";
   const pathParam = new URLSearchParams(search).get("path");
   if (typeof pathParam !== "string" || !pathParam.trim()) return null;
   return pathParam.startsWith("/") ? pathParam : `/${pathParam}`;
 }
 
 /**
- * Envolve req em um Proxy que sempre devolve o path real em url/originalUrl/path.
- * Assim o Express/Nest faz match da rota correta (ex.: POST /api/auth/login).
+ * Middleware que roda PRIMEIRO na pilha Express: corrige req.url/originalUrl/path
+ * a partir de ?path= (rewrite Vercel). Assim o roteador Nest vê o path correto.
  */
-function wrapReqWithPath(req: Request, path: string): Request {
+function vercelPathMiddleware(req: Request, _res: Response, next: () => void): void {
+  if (!process.env.VERCEL) return next();
+  const raw = (req as any).url ?? (req as any).originalUrl ?? "";
+  const path = getPathFromQuery(raw);
+  if (!path || path === "/api") return next();
   const pathOnly = path.includes("?") ? path.slice(0, path.indexOf("?")) : path;
-  return new Proxy(req, {
-    get(target: any, prop: string | symbol) {
-      if (prop === "url") return path;
-      if (prop === "originalUrl") return path;
-      if (prop === "path") return pathOnly;
-      return target[prop];
-    },
-  }) as Request;
+  const def = (obj: any, key: string, value: string) => {
+    try {
+      Object.defineProperty(obj, key, { value, configurable: true, writable: true });
+    } catch {
+      (obj as any)[key] = value;
+    }
+  };
+  def(req, "url", path);
+  def(req, "originalUrl", path);
+  def(req, "path", pathOnly);
+  delete (req as any)._parsedUrl;
+  delete (req as any)._parsedOriginalUrl;
+  next();
+}
+
+async function getExpressApp(): Promise<(req: Request, res: Response) => void> {
+  if (!cachedExpressApp) {
+    const app = await createApp();
+    const expressApp = app.getHttpAdapter().getInstance() as any;
+    if (process.env.VERCEL && expressApp._router && Array.isArray(expressApp._router.stack)) {
+      const Layer = require("express/lib/router/layer");
+      const layer = new (Layer as any)("/", {}, vercelPathMiddleware);
+      expressApp._router.stack.unshift(layer);
+    }
+    cachedExpressApp = expressApp;
+  }
+  return cachedExpressApp;
 }
 
 /**
- * Handler Vercel: rewrite envia "/(.*)" -> "/api?path=$1".
- * Repassamos um req com path correto (Proxy) para o Nest.
- * A Promise só resolve quando a resposta terminar (res.finish), para a Vercel não encerrar cedo.
+ * Handler Vercel: rewrite "/(.*)" -> "/api?path=$1".
+ * Middleware injetado no início da pilha corrige req antes do roteador.
  */
 export default function handler(req: Request, res: Response): Promise<void> {
-  const path = process.env.VERCEL ? getPathFromReq(req) : null;
-  const reqToUse =
-    path && path !== "/api" ? wrapReqWithPath(req, path) : req;
   return new Promise<void>((resolve, reject) => {
     res.on("finish", () => resolve());
     res.on("error", reject);
     getExpressApp()
-      .then((expressApp) => {
-        expressApp(reqToUse, res);
-      })
+      .then((expressApp) => expressApp(req, res))
       .catch(reject);
   });
 }
