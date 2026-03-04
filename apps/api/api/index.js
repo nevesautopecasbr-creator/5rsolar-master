@@ -33,12 +33,11 @@ function getPathFromRequest(req) {
 
 module.exports = function (req, res) {
   const path = getPathFromRequest(req);
-  if (process.env.VERCEL && req.method === "POST") {
-    console.log("[api/index] method=" + req.method + " req.url=" + (req.url || "") + " path=" + (path || ""));
-  }
   if (path && path !== "/api") {
     req.url = path;
-    if (typeof req.originalUrl !== "undefined") req.originalUrl = path;
+    req.originalUrl = path;
+    req.path = path;
+    req.baseUrl = "";
   }
   handler(req, res);
 };
