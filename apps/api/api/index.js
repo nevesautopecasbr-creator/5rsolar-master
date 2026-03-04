@@ -31,8 +31,18 @@ module.exports = function (req, res) {
   }
   const wrappedReq = new Proxy(req, {
     get(target, prop) {
-      if (prop === "url" || prop === "originalUrl" || prop === "path") return path;
-      if (prop === "baseUrl") return "";
+      if (prop === "url") {
+        const t = target.url;
+        if (typeof t === "string" && t !== "" && t.indexOf("?") < 0) return t;
+        return path;
+      }
+      if (prop === "path") {
+        const t = target.path;
+        if (typeof t === "string" && t !== "" && t.indexOf("?") < 0) return t;
+        return path;
+      }
+      if (prop === "originalUrl") return path;
+      if (prop === "baseUrl") return target.baseUrl !== undefined ? target.baseUrl : "";
       return target[prop];
     },
   });
