@@ -23,6 +23,9 @@ function getPath(req) {
 
 module.exports = function (req, res) {
   const path = getPath(req);
+  if (process.env.VERCEL) {
+    console.log("[api/index] method=" + (req.method || "") + " req.url=" + (req.url || "") + " path=" + (path || "(null)") + " useProxy=" + !!(path && path !== "/api"));
+  }
   if (!path || path === "/api") {
     return handler(req, res);
   }
