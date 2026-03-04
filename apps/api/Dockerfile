@@ -13,14 +13,11 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npm run build
 
-# Produção: só o necessário para rodar
+# Produção: copia app completo do builder (dist + node_modules + prisma)
 FROM base AS runner
 ENV NODE_ENV=production
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package.json ./
-# Prisma precisa do schema para runtime (migrations opcional)
-COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app ./
 
 EXPOSE 3000
-CMD ["npm", "run", "start"]
+# Nest pode gerar dist/main.js ou dist/src/main.js conforme tsconfig
+CMD ["sh", "-c", "node dist/src/main.js 2>/dev/null || node dist/main.js"]
