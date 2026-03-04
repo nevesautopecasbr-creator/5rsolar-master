@@ -176,6 +176,29 @@ Após um novo deploy da API, o logout e outras requisições que disparam prefli
 
 ---
 
+## POST /api/auth/login ou /api/auth/logout retorna 404
+
+**Sintoma:** No console do navegador: `POST https://5rsolar-api.vercel.app/api/auth/login 404 (Not Found)` (ou o mesmo para logout).
+
+**O que verificar no projeto da API na Vercel:**
+
+1. **Root Directory**  
+   Em **Settings → General**, o **Root Directory** deve ser **`apps/api`**. Se estiver vazio ou com outro valor, a pasta `api/` (onde está o entrypoint da função) não será a raiz do deploy e a função não será encontrada.
+
+2. **Pasta `public` e `outputDirectory`**  
+   O `vercel.json` da API **não** deve ter `outputDirectory` (ou, se tiver, a pasta indicada precisa existir após o build). Existe a pasta **`apps/api/public`** (pode ter só um `.gitkeep`) para o build não falhar com "No Output Directory named public found". Com `outputDirectory: "dist"`, a Vercel usaria só a pasta `dist/` e a pasta `api/` não entraria no deploy → 404.
+
+3. **Deploy mais recente**  
+   Depois de qualquer alteração em `vercel.json` ou em `apps/api/api/index.js`, faça um **novo deploy** (push no Git ou **Redeploy** no dashboard). O 404 pode ser de um deploy antigo.
+
+4. **Função no deploy**  
+   No deploy da API, abra **Resources** (ou a aba **Functions**). Deve aparecer a função **`/api/index`** (ou `api/index`). Se não aparecer nenhuma função, o deploy não está incluindo a pasta `api/` (confira o Root Directory e a ausência de `outputDirectory`).
+
+5. **Rewrite e path**  
+   O `vercel.json` tem um **rewrite** que envia todas as requisições para `/api?path=$1`. O arquivo `api/index.js` lê esse `path` e define `req.url` para o Nest conseguir casar as rotas (`/api/auth/login`, etc.). Se o 404 continuar após os itens acima, confira se o conteúdo de `apps/api/vercel.json` e `apps/api/api/index.js` está igual ao do repositório (rewrite com `?path=$1` e handler que usa `getPathFromRequest`).
+
+---
+
 ## Requisição indo para URL errada (3rsular, .sp, /sp/…)
 
 **Sintoma:** No console aparece algo como `POST https://3rsular-api.vercel.sp/sp/auth/logout net::ERR_FAILED` ou "Failed to fetch". A URL está com domínio ou caminho errados.

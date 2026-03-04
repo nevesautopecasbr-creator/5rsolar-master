@@ -1,17 +1,39 @@
 /**
  * Entrypoint da função serverless na Vercel.
  * Encaminha todas as requisições ao handler Nest (dist/src/serverless.js).
- * O rewrite envia o path original em ?path=... para o Nest receber a URL correta.
+ * O rewrite em vercel.json envia o path original em ?path=... para o Nest receber a URL correta.
  */
 const { parse } = require("url");
 const handler = require("../dist/src/serverless").default;
 
+function getPathFromRequest(req) {
+  const rawUrl = req.url || "";
+  const parsed = parse(rawUrl, true);
+  const pathFromQuery = parsed.query && parsed.query.path;
+  if (pathFromQuery) {
+    const s = typeof pathFromQuery === "string" ? pathFromQuery : pathFromQuery[0];
+    return s ? (s.startsWith("/") ? s : "/" + s) : null;
+  }
+  const pathFromHeader =
+    req.headers["x-invoke-path"] || req.headers["x-vercel-original-url"];
+  if (pathFromHeader) {
+    try {
+      const p = pathFromHeader.startsWith("/") ? pathFromHeader : "/" + pathFromHeader;
+      return p.indexOf("?") >= 0 ? p.slice(0, p.indexOf("?")) : p;
+    } catch {
+      return null;
+    }
+  }
+  if (rawUrl.startsWith("/api")) {
+    return rawUrl.indexOf("?") >= 0 ? rawUrl.slice(0, rawUrl.indexOf("?")) : rawUrl;
+  }
+  return null;
+}
+
 module.exports = function (req, res) {
-  const parsed = parse(req.url || "", true);
-  const path = parsed.query && parsed.query.path;
+  const path = getPathFromRequest(req);
   if (path) {
-    const pathStr = typeof path === "string" ? path : path[0];
-    req.url = pathStr.startsWith("/") ? pathStr : "/" + pathStr;
+    req.url = path;
   }
   handler(req, res);
 };
