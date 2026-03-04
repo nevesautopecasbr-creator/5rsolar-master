@@ -13,7 +13,8 @@ import { AppModule } from "./app.module";
  */
 export async function createApp(): Promise<NestExpressApplication> {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
-  app.setGlobalPrefix("api");
+  // Na Vercel o path chega sem prefixo no req (api/index.js repassa /auth/login); localmente usa /api.
+  app.setGlobalPrefix(process.env.VERCEL ? "" : "api");
 
   const envOrigins = [
     process.env.WEB_ORIGIN ?? "",
@@ -64,7 +65,7 @@ export async function createApp(): Promise<NestExpressApplication> {
     .addBearerAuth()
     .build();
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup("api/docs", app, document);
+  SwaggerModule.setup(process.env.VERCEL ? "docs" : "api/docs", app, document);
 
   return app;
 }
