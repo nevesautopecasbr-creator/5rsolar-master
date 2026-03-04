@@ -1,6 +1,37 @@
 /**
  * Entrypoint da função serverless na Vercel.
- * Repassa req/res ao handler Nest. A correção do path (?path=...) é feita
- * dentro do Nest (middleware em app.factory.ts) para garantir que o roteador veja o path certo.
+ * Envolve req em um Proxy que força url/path/originalUrl/baseUrl para o path real,
+ * para o roteador do Express/Nest sempre enxergar o path correto (ex.: /api/auth/login).
  */
-module.exports = require("../dist/src/serverless").default;
+const { parse } = require("url");
+const handler = require("../dist/src/serverless").default;
+
+function getPath(req) {
+  const rawUrl = (req.url || req.originalUrl || "").trim();
+  const parsed = parse(rawUrl, true);
+  const pathname = (parsed.pathname || "").trim();
+  const pathFromQuery = parsed.query && parsed.query.path;
+  if (pathFromQuery) {
+    const s = typeof pathFromQuery === "string" ? pathFromQuery : pathFromQuery[0];
+    if (s) return s.startsWith("/") ? s : "/" + s;
+  }
+  if (pathname.startsWith("/api") && pathname.length > 4) {
+    return pathname;
+  }
+  return null;
+}
+
+module.exports = function (req, res) {
+  const path = getPath(req);
+  if (!path || path === "/api") {
+    return handler(req, res);
+  }
+  const wrappedReq = new Proxy(req, {
+    get(target, prop) {
+      if (prop === "url" || prop === "originalUrl" || prop === "path") return path;
+      if (prop === "baseUrl") return "";
+      return target[prop];
+    },
+  });
+  handler(wrappedReq, res);
+};

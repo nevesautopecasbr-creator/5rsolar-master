@@ -4,34 +4,16 @@ import { NestExpressApplication } from "@nestjs/platform-express";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import * as cookieParser from "cookie-parser";
 import { join } from "node:path";
-import { parse } from "url";
 import { AppModule } from "./app.module";
 
 /**
  * Cria a aplicação NestJS com toda a configuração (CORS, pipes, Swagger).
  * Usado por main.ts (local) e pelo entrypoint serverless (Vercel).
+ * Na Vercel, o path é corrigido no api/index.js via Proxy no req.
  */
 export async function createApp(): Promise<NestExpressApplication> {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   app.setGlobalPrefix("api");
-
-  const expressApp = app.getHttpAdapter().getInstance();
-  expressApp.use((req: any, _res: any, next: () => void) => {
-    const rawUrl = (req.url || "").trim();
-    const parsedUrl = parse(rawUrl, true);
-    const pathname = (parsedUrl.pathname || "").trim();
-    const pathFromQuery = parsedUrl.query?.path;
-    if (pathFromQuery && (pathname === "/api" || pathname.length <= 4)) {
-      const path = typeof pathFromQuery === "string"
-        ? (pathFromQuery.startsWith("/") ? pathFromQuery : "/" + pathFromQuery)
-        : "/" + (pathFromQuery[0] || "");
-      req.url = path;
-      req.originalUrl = path;
-      req.path = path;
-      req.baseUrl = "";
-    }
-    next();
-  });
 
   const envOrigins = [
     process.env.WEB_ORIGIN ?? "",
