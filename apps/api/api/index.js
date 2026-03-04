@@ -1,7 +1,6 @@
 /**
  * Entrypoint da função serverless na Vercel.
- * Envolve req em um Proxy que força url/path/originalUrl/baseUrl para o path real,
- * para o roteador do Express/Nest sempre enxergar o path correto (ex.: /api/auth/login).
+ * Ajusta req.url / req.originalUrl / req.path antes de repassar ao Nest (rewrite Vercel).
  */
 const { parse } = require("url");
 const handler = require("../dist/src/serverless").default;
@@ -24,27 +23,12 @@ function getPath(req) {
 module.exports = function (req, res) {
   const path = getPath(req);
   if (process.env.VERCEL) {
-    console.log("[api/index] method=" + (req.method || "") + " req.url=" + (req.url || "") + " path=" + (path || "(null)") + " useProxy=" + !!(path && path !== "/api"));
+    console.log("[api/index] method=" + (req.method || "") + " path=" + (path || "(null)"));
   }
-  if (!path || path === "/api") {
-    return handler(req, res);
+  if (path && path !== "/api") {
+    req.url = path;
+    req.originalUrl = path;
+    req.path = path.indexOf("?") >= 0 ? path.slice(0, path.indexOf("?")) : path;
   }
-  const wrappedReq = new Proxy(req, {
-    get(target, prop) {
-      if (prop === "url") {
-        const t = target.url;
-        if (typeof t === "string" && t !== "" && t.indexOf("?") < 0) return t;
-        return path;
-      }
-      if (prop === "path") {
-        const t = target.path;
-        if (typeof t === "string" && t !== "" && t.indexOf("?") < 0) return t;
-        return path;
-      }
-      if (prop === "originalUrl") return path;
-      if (prop === "baseUrl") return target.baseUrl !== undefined ? target.baseUrl : "";
-      return target[prop];
-    },
-  });
-  handler(wrappedReq, res);
+  return handler(req, res);
 };
