@@ -176,26 +176,44 @@ Após um novo deploy da API, o logout e outras requisições que disparam prefli
 
 ---
 
-## POST /api/auth/login ou /api/auth/logout retorna 404
+## Análise: POST /api/auth/login retorna 404 (e solução aplicada)
 
-**Sintoma:** No console do navegador: `POST https://5rsolar-api.vercel.app/api/auth/login 404 (Not Found)` (ou o mesmo para logout).
+### Fluxo atual
 
-**O que verificar no projeto da API na Vercel:**
+1. **Front** chama `POST https://5rsolar-api.vercel.app/api/auth/login` (body: email, password).
+2. **Vercel** aplica o rewrite `"/(.*)" → "/api?path=$1"`, então a requisição é atendida pela função em **`/api`** (arquivo `api/index.js`).
+3. **api/index.js** só repassa `(req, res)` ao handler Nest (`dist/src/serverless.js`). Não altera mais o `req`.
+4. **serverless.js** usa o app Express do Nest (cache) e chama `expressApp(req, res)`.
+5. **Nest/Express** deveria casar a rota `POST /api/auth/login` (AuthController) e responder.
 
-1. **Root Directory**  
-   Em **Settings → General**, o **Root Directory** deve ser **`apps/api`**. Se estiver vazio ou com outro valor, a pasta `api/` (onde está o entrypoint da função) não será a raiz do deploy e a função não será encontrada.
+### O que os logs mostraram
 
-2. **Pasta `public` e `outputDirectory`**  
-   O `vercel.json` da API **não** deve ter `outputDirectory` (ou, se tiver, a pasta indicada precisa existir após o build). Existe a pasta **`apps/api/public`** (pode ter só um `.gitkeep`) para o build não falhar com "No Output Directory named public found". Com `outputDirectory: "dist"`, a Vercel usaria só a pasta `dist/` e a pasta `api/` não entraria no deploy → 404.
+- **OPTIONS** `/api/auth/login` → **204**: preflight OK (CorsPreflightMiddleware responde).
+- **POST** `/api/auth/login` → **404**: a função `/api/index` é invocada (Route: `/api`), mas o Nest devolve 404.
+- No log do POST apareceu: `req.url=/api/auth/login?path=api%2Fauth%2Flogin` e `path=/api/auth/login`. Ou seja, o pathname já estava correto no `req` que chegou ao entrypoint.
 
-3. **Deploy mais recente**  
-   Depois de qualquer alteração em `vercel.json` ou em `apps/api/api/index.js`, faça um **novo deploy** (push no Git ou **Redeploy** no dashboard). O 404 pode ser de um deploy antigo.
+### Por que o 404 pode acontecer
 
-4. **Função no deploy**  
-   No deploy da API, abra **Resources** (ou a aba **Functions**). Deve aparecer a função **`/api/index`** (ou `api/index`). Se não aparecer nenhuma função, o deploy não está incluindo a pasta `api/` (confira o Root Directory e a ausência de `outputDirectory`).
+- O **path** que o **roteador do Express/Nest** usa para casar rotas pode não ser o mesmo que `req.url` no entrypoint: o objeto `req` pode ser normalizado ou ter getters em outro nível (ex.: camada Vercel), e alterar `req.url` no `api/index.js` pode não refletir no que o Express lê depois.
+- Por isso a correção do path foi levada para **dentro do Nest**, como **primeiro middleware** do Express, no mesmo processo em que o roteador roda, garantindo que o mesmo `req` que o middleware altera seja o que o roteador usa.
 
-5. **Rewrite e path**  
-   O `vercel.json` tem um **rewrite** que envia todas as requisições para `/api?path=$1`. O arquivo `api/index.js` lê esse `path` e define `req.url` para o Nest conseguir casar as rotas (`/api/auth/login`, etc.). Se o 404 continuar após os itens acima, confira se o conteúdo de `apps/api/vercel.json` e `apps/api/api/index.js` está igual ao do repositório (rewrite com `?path=$1` e handler que usa `getPathFromRequest`).
+### Solução aplicada no código
+
+1. **`apps/api/src/app.factory.ts`**  
+   Foi adicionado um **middleware** no **início** da pilha do Express (logo após `setGlobalPrefix("api")`):
+   - Lê `req.url` e faz parse (pathname + query).
+   - Se o pathname for **apenas** `/api` (ou muito curto) e existir **`?path=...`**, reescreve `req.url`, `req.originalUrl`, `req.path` e `req.baseUrl` para o path vindo do query (ex.: `/api/auth/login`).
+   - Assim, quando a Vercel enviar a requisição como `/api?path=api/auth/login`, o roteador do Nest enxerga `POST /api/auth/login` e a rota do AuthController passa a ser encontrada.
+
+2. **`apps/api/api/index.js`**  
+   Foi **simplificado**: apenas repassa o handler do Nest (`require("../dist/src/serverless").default`). Toda a lógica de path ficou no middleware dentro do Nest.
+
+### O que conferir na Vercel (se ainda der 404)
+
+- **Root Directory** do projeto da API = **`apps/api`**.
+- **Não** usar `outputDirectory` no `vercel.json` (ou manter a pasta `public` se usar).
+- Em **Resources** do deploy, deve aparecer a função **`/api/index`**.
+- Fazer **novo deploy** após qualquer mudança em `app.factory.ts` ou `api/index.js`.
 
 ---
 
