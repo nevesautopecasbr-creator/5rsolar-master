@@ -25,10 +25,34 @@ module.exports = function (req, res) {
   if (process.env.VERCEL) console.log("[api/index] fullPath=" + fullPath);
   const wrapped = new Proxy(req, {
     get(target, prop) {
-      const stripped = typeof target.url === "string" && target.url !== "" && target.url.indexOf("?") < 0 && target.url !== fullPath ? target.url : null;
-      if (prop === "url") return stripped != null ? stripped : fullPath;
+      const rawTarget =
+        typeof target.url === "string" && target.url !== "" && target.url !== fullPath ? target.url : null;
+      const stripped = rawTarget
+        ? rawTarget.indexOf("?") >= 0
+          ? rawTarget.slice(0, rawTarget.indexOf("?"))
+          : rawTarget
+        : null;
+      const pathname = stripped != null ? stripped : fullPath;
+      if (prop === "url") {
+        if (stripped != null) {
+          const withQuery =
+            typeof target.url === "string" && target.url.indexOf("?") >= 0
+              ? target.url.slice(target.url.indexOf("?"))
+              : "";
+          return stripped + withQuery;
+        }
+        return fullPath;
+      }
       if (prop === "originalUrl") return fullPath;
-      if (prop === "path") return stripped != null ? stripped : fullPath;
+      if (prop === "path") return pathname;
+      if (prop === "_parsedUrl") {
+        const orig = target._parsedUrl || {};
+        const search =
+          (typeof target.url === "string" && target.url.indexOf("?") >= 0
+            ? target.url.slice(target.url.indexOf("?"))
+            : orig.search) || "";
+        return Object.assign({}, orig, { pathname, path: pathname + search });
+      }
       return target[prop];
     },
   });
