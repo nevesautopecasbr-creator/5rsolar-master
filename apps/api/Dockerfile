@@ -2,10 +2,10 @@
 FROM node:20-alpine AS base
 WORKDIR /app
 
-# Instala dependências (sem package-lock para evitar erro "extraneous"; npm gera árvore limpa)
+# Instala dependências (npm ci é rápido e usa cache quando package-lock não muda)
 FROM base AS deps
-COPY package.json ./
-RUN npm install
+COPY package.json package-lock.json ./
+RUN npm ci
 
 # Build
 FROM base AS builder
