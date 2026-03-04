@@ -6,11 +6,26 @@ const { parse } = require("url");
 const handler = require("../dist/src/serverless").default;
 
 function getPath(req) {
+  let s = null;
   const raw = (req.url || req.originalUrl || "").trim();
   const parsed = parse(raw, true);
-  const pathParam = parsed.query && parsed.query.path;
-  const s = typeof pathParam === "string" ? pathParam : Array.isArray(pathParam) ? pathParam[0] : null;
+  const fromUrl = parsed.query && parsed.query.path;
+  if (typeof fromUrl === "string") s = fromUrl;
+  else if (Array.isArray(fromUrl) && fromUrl[0]) s = fromUrl[0];
+  if (!s && req.query && req.query.path) {
+    const q = req.query.path;
+    s = typeof q === "string" ? q : Array.isArray(q) ? q[0] : null;
+  }
+  // Fallback: req.url já é o path (ex.: Vercel repassa o path original)
+  if (!s && raw && raw.startsWith("/") && raw.indexOf("path=") === -1) {
+    s = raw.indexOf("?") >= 0 ? raw.slice(0, raw.indexOf("?")) : raw;
+  }
   if (!s || !s.trim()) return null;
+  try {
+    s = decodeURIComponent(s.trim());
+  } catch (_) {
+    s = s.trim();
+  }
   return s.startsWith("/") ? s : "/" + s;
 }
 
@@ -20,7 +35,12 @@ module.exports = function (req, res) {
   if (process.env.VERCEL) {
     console.log("[api/index] rawUrl=" + rawUrl + " path=" + (path || "(null)") + " method=" + (req.method || ""));
   }
-  if (!path || path === "/api") return handler(req, res);
+  if (!path || path === "/api") {
+    if (process.env.VERCEL && !path) {
+      console.warn("[api/index] path vazio: req.url=" + rawUrl + " req.query.path=" + (req.query && req.query.path));
+    }
+    return handler(req, res);
+  }
   const fullPath = path.indexOf("?") >= 0 ? path.slice(0, path.indexOf("?")) : path;
   if (process.env.VERCEL) console.log("[api/index] fullPath=" + fullPath);
   const wrapped = new Proxy(req, {
