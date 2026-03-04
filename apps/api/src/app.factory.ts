@@ -9,19 +9,11 @@ import { AppModule } from "./app.module";
 /**
  * Cria a aplicação NestJS com toda a configuração (CORS, pipes, Swagger).
  * Usado por main.ts (local) e pelo entrypoint serverless (Vercel).
- * Na Vercel, o path é corrigido no api/index.js via Proxy no req.
+ * Na Vercel, o path (rewrite ?path=) é corrigido em serverless.ts antes do Express.
  */
 export async function createApp(): Promise<NestExpressApplication> {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   app.setGlobalPrefix("api");
-
-  const expressApp = app.getHttpAdapter().getInstance();
-  expressApp.use((req: any, _res: any, next: () => void) => {
-    if (process.env.VERCEL && req.method === "POST") {
-      console.log("[Nest] req.url=" + (req.url ?? "") + " req.path=" + (req.path ?? "") + " method=" + (req.method ?? ""));
-    }
-    next();
-  });
 
   const envOrigins = [
     process.env.WEB_ORIGIN ?? "",
