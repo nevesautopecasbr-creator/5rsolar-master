@@ -9,8 +9,14 @@ async function getExpressApp(): Promise<(req: Request, res: Response) => void> {
     const expressApp = app.getHttpAdapter().getInstance() as any;
     if (process.env.VERCEL && expressApp._router && Array.isArray(expressApp._router.stack)) {
       const Layer = require("express/lib/router/layer");
+      let routesLogged = false;
       const logLayer = new (Layer as any)("*", {}, (req: any, _res: any, next: () => void) => {
         console.log("[Nest/Express] req.url=" + (req?.url ?? "") + " req.path=" + (req?.path ?? "") + " method=" + (req?.method ?? ""));
+        if (!routesLogged && expressApp._router?.stack) {
+          routesLogged = true;
+          const paths = expressApp._router.stack.slice(0, 25).map((l: any, i: number) => i + ":" + (l.route ? l.route.path : l.regexp?.toString().slice(0, 60)));
+          console.log("[Nest/Express] stack sample: " + paths.join(" | "));
+        }
         next();
       });
       expressApp._router.stack.unshift(logLayer);
