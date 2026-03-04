@@ -48,7 +48,7 @@ async function getExpressApp(): Promise<(req: Request, res: Response) => void> {
     }
     cachedExpressApp = expressApp;
   }
-  return cachedExpressApp;
+  return cachedExpressApp!;
 }
 
 /**
