@@ -215,6 +215,21 @@ Após um novo deploy da API, o logout e outras requisições que disparam prefli
 - Em **Resources** do deploy, deve aparecer a função **`/api/index`**.
 - Fazer **novo deploy** após qualquer mudança em `app.factory.ts` ou `api/index.js`.
 
+### Próximos passos se o 404 persistir
+
+1. **Ver os logs da função**
+   - Após o deploy, faça um `POST /api/auth/login` (Postman ou front) e abra o deploy na Vercel → **Functions** → clique na função `/api` → **Logs** (ou **View Function Logs**).
+   - O código em `api/index.js` loga `[api/index] rawUrl=... path=... method=...` e `pathForRouter=...`.
+   - Confira: `path` deve ser `/api/auth/login` e `pathForRouter` deve ser `/auth/login`. Se `path` vier `(null)`, o `req.url` que a Vercel passa não está no formato esperado (`/api?path=...`).
+
+2. **Se os logs estiverem corretos e ainda 404**
+   - O Express/Nest pode estar lendo o path em um momento ou propriedade que o Proxy não cobre. Nesse caso, a opção mais estável é **hospedar a API em um serviço que não reescreve a URL** (o path da requisição chega igual ao que o cliente pediu):
+     - **[Railway](https://railway.app)** ou **[Render](https://render.com)**: deploy do mesmo `apps/api` (Node, `npm run build` + `node dist/src/main` ou comando equivalente). A API fica em uma URL como `https://sua-api.up.railway.app`; no front, use essa URL em `NEXT_PUBLIC_API_URL`.
+     - Localmente e nesses serviços, as rotas continuam como `POST /api/auth/login` (prefixo `api` no Nest).
+
+3. **Alternativa técnica (avançado)**
+   - Testar o uso de **[@codegenie/serverless-express](https://www.npmjs.com/package/@codegenie/serverless-express)** (sucessor de `@vendia/serverless-express`) no entrypoint da Vercel para normalizar o request antes de passar ao Nest. Requer ajuste no `api/index.js` e possivelmente no `serverless.ts`.
+
 ---
 
 ## Requisição indo para URL errada (3rsular, .sp, /sp/…)

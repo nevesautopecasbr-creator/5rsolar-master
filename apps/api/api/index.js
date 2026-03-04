@@ -15,11 +15,15 @@ function getPath(req) {
 }
 
 module.exports = function (req, res) {
+  const rawUrl = (req.url || req.originalUrl || "").trim();
   const path = getPath(req);
+  if (process.env.VERCEL) {
+    console.log("[api/index] rawUrl=" + rawUrl + " path=" + (path || "(null)") + " method=" + (req.method || ""));
+  }
   if (!path || path === "/api") return handler(req, res);
   const fullPath = path.indexOf("?") >= 0 ? path.slice(0, path.indexOf("?")) : path;
-  // Na Vercel o Nest roda sem prefixo global: rotas são /auth/login. Passamos path sem /api.
   const pathForRouter = fullPath.startsWith("/api") ? fullPath.slice(4) || "/" : fullPath;
+  if (process.env.VERCEL) console.log("[api/index] pathForRouter=" + pathForRouter);
   const search = path.indexOf("?") >= 0 ? path.slice(path.indexOf("?")) : "";
   const parsedUrl = { pathname: pathForRouter, path: pathForRouter, search, query: {} };
   const wrapped = new Proxy(req, {
