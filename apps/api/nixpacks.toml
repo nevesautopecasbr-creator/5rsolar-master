@@ -1,0 +1,6 @@
+# Railway/Nixpacks: usa npm (apps/api não tem pnpm-lock.yaml; o lockfile está na raiz do monorepo)
+[phases.install]
+cmds = ["npm install"]
+
+[phases.build]
+cmds = ["npm run build"]
