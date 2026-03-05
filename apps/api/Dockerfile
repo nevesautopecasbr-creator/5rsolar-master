@@ -1,5 +1,6 @@
 # Build e run da API NestJS no Railway (evita Nixpacks e lockfile corrompido)
-FROM node:20-alpine AS base
+# Usa node:20-slim (Debian) para ter OpenSSL compatível com o Prisma (Alpine não tem libssl.so.1.1)
+FROM node:20-slim AS base
 WORKDIR /app
 
 # Instala dependências (npm ci é rápido e usa cache quando package-lock não muda)
