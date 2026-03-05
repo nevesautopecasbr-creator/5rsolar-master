@@ -1,5 +1,5 @@
 # Build e run da API NestJS no Railway (evita Nixpacks e lockfile corrompido)
-# Usa node:20-slim (Debian) para ter OpenSSL compatível com o Prisma (Alpine não tem libssl.so.1.1)
+# node:20-slim = Debian Bookworm (OpenSSL 3.x). Prisma schema usa binaryTargets = ["debian-openssl-3.0.x"].
 FROM node:20-slim AS base
 WORKDIR /app
 
