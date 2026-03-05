@@ -466,26 +466,28 @@ model Bank {
 }
 
 model Project {
-  id              String        @id @default(uuid()) @db.Uuid
-  companyId       String?       @db.Uuid
-  code            String?
-  name            String
-  description     String?
-  status          ProjectStatus @default(PLANNING)
-  kWp             Decimal?      @db.Decimal(15, 2)
-  utilityCompany  String?
-  address         String?
-  city            String?
-  state           String?
-  zipCode         String?
-  productsUsed    Json?
-  startDate       DateTime?
-  endDate         DateTime?
-  customerId      String?       @db.Uuid
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  createdById     String?       @db.Uuid
-  updatedById     String?       @db.Uuid
+  id                 String        @id @default(uuid()) @db.Uuid
+  companyId          String?       @db.Uuid
+  code               String?
+  name               String
+  description        String?
+  status             ProjectStatus @default(PLANNING)
+  kWp                Decimal?      @db.Decimal(15, 2)
+  utilityCompany     String?
+  address            String?
+  city               String?
+  state              String?
+  zipCode            String?
+  productsUsed       Json?
+  startDate          DateTime?
+  endDate            DateTime?
+  customerId         String?       @db.Uuid
+  mondayId           String?       @unique
+  qualificationNotes String?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+  createdById        String?       @db.Uuid
+  updatedById        String?       @db.Uuid
 
   company     Company?   @relation(fields: [companyId], references: [id])
   customer    Customer?  @relation(fields: [customerId], references: [id])
