@@ -55,10 +55,12 @@ export class AuthController {
   private setAuthCookies(res: Response, accessToken: string, refreshToken: string) {
     const accessMinutes = Number(process.env.JWT_ACCESS_MINUTES ?? 15);
     const refreshDays = Number(process.env.JWT_REFRESH_DAYS ?? 7);
+    const isProduction = process.env.NODE_ENV === "production";
+    // Em produção com front (Vercel) e API (Railway) em domínios diferentes, cookies precisam de sameSite: "none" para serem enviados cross-origin
     const common = {
       httpOnly: true,
-      sameSite: "lax" as const,
-      secure: process.env.NODE_ENV === "production",
+      sameSite: (isProduction ? "none" : "lax") as "none" | "lax",
+      secure: isProduction,
       path: "/",
     };
 
@@ -73,7 +75,9 @@ export class AuthController {
   }
 
   private clearAuthCookies(res: Response) {
-    res.clearCookie("access_token", { path: "/" });
-    res.clearCookie("refresh_token", { path: "/" });
+    const isProduction = process.env.NODE_ENV === "production";
+    const opts = { path: "/", sameSite: (isProduction ? "none" : "lax") as "none" | "lax", secure: isProduction };
+    res.clearCookie("access_token", opts);
+    res.clearCookie("refresh_token", opts);
   }
 }
