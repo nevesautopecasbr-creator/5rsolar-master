@@ -72,7 +72,7 @@ export class MondayService {
       entityName: "Customer",
       entityId: created.id,
       action: "CREATE",
-      payload: { name: created.name, source: "monday" },
+      payload: { name, source: "monday" },
     });
 
     return created;
@@ -124,10 +124,12 @@ export class MondayService {
 
     const customer = await this.findOrCreateCustomer(companyId, payload);
 
+    const projectName =
+      payload.leadName?.trim() || payload.company?.trim() || "Projeto lead";
     const project = await this.prisma.project.create({
       data: {
         companyId,
-        name: payload.leadName?.trim() || payload.company?.trim() || "Projeto lead",
+        name: projectName,
         description: payload.qualificationNotes
           ? `Qualificação: ${payload.qualificationNotes}`
           : undefined,
@@ -143,7 +145,7 @@ export class MondayService {
       entityName: "Project",
       entityId: project.id,
       action: "CREATE",
-      payload: { name: project.name, source: "monday", mondayId: payload.mondayId },
+      payload: { name: projectName, source: "monday", mondayId: payload.mondayId },
     });
 
     const sale = await this.prisma.sale.create({
