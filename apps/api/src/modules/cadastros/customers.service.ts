@@ -43,6 +43,8 @@ export class CustomersService {
         city: dto.city,
         state: dto.state,
         zipCode: dto.zipCode,
+        currentConsumptionKwh: dto.currentConsumptionKwh != null ? dto.currentConsumptionKwh : undefined,
+        consumerUnitCode: dto.consumerUnitCode,
         createdById: actorId,
       },
     });
@@ -95,6 +97,8 @@ export class CustomersService {
         city: dto.city,
         state: dto.state,
         zipCode: dto.zipCode,
+        currentConsumptionKwh: dto.currentConsumptionKwh != null ? dto.currentConsumptionKwh : undefined,
+        consumerUnitCode: dto.consumerUnitCode,
         updatedById: actorId,
       },
     });

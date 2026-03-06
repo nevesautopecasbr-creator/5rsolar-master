@@ -145,15 +145,24 @@ enum TicketPriority {
   URGENT
 }
 
+/// Perfis 5R: controle de acesso para entrada de leads (Vendedor externo, Tráfego pago, Diretores).
+enum UserProfile {
+  VENDEDOR_EXTERNO
+  TRAFEGO_PAGO
+  DIRETOR
+  ADMIN
+}
+
 model User {
-  id           String   @id @default(uuid()) @db.Uuid
+  id           String       @id @default(uuid()) @db.Uuid
   name         String
-  email        String   @unique
+  email        String       @unique
   phone        String?
   passwordHash String
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  profile      UserProfile?
+  isActive     Boolean      @default(true)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
 
   memberships  CompanyMembership[]
   roles        UserRole[]
@@ -353,20 +362,24 @@ model RefreshToken {
 }
 
 model Customer {
-  id        String   @id @default(uuid()) @db.Uuid
-  companyId String?  @db.Uuid
-  name      String
-  document  String?
-  email     String?
-  phone     String?
-  address   String?
-  city      String?
-  state     String?
-  zipCode   String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  createdById String? @db.Uuid
-  updatedById String? @db.Uuid
+  id                   String    @id @default(uuid()) @db.Uuid
+  companyId            String?   @db.Uuid
+  name                 String
+  document             String?
+  email                String?
+  phone                String?
+  address              String?
+  city                 String?
+  state                String?
+  zipCode              String?
+  /// Consumo atual em kWh (obrigatório para orçamento 5R).
+  currentConsumptionKwh Decimal?  @db.Decimal(15, 2)
+  /// Código da Unidade Consumidora (UC) na concessionária.
+  consumerUnitCode     String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  createdById          String?   @db.Uuid
+  updatedById          String?   @db.Uuid
 
   company  Company? @relation(fields: [companyId], references: [id])
   sales    Sale[]

@@ -8,6 +8,8 @@ const permissions = [
   "iam.write",
   "cadastros.read",
   "cadastros.write",
+  "leads.read",
+  "leads.write",
   "projetos.read",
   "projetos.write",
   "contratos.read",

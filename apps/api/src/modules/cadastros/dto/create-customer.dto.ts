@@ -1,4 +1,5 @@
-import { IsEmail, IsOptional, IsString } from "class-validator";
+import { IsEmail, IsNumber, IsOptional, IsString, Min } from "class-validator";
+import { Type } from "class-transformer";
 
 export class CreateCustomerDto {
   @IsString()
@@ -31,4 +32,16 @@ export class CreateCustomerDto {
   @IsOptional()
   @IsString()
   zipCode?: string;
+
+  /** Consumo atual em kWh (obrigatório para orçamento 5R). */
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Type(() => Number)
+  currentConsumptionKwh?: number;
+
+  /** Código da Unidade Consumidora (UC) na concessionária. */
+  @IsOptional()
+  @IsString()
+  consumerUnitCode?: string;
 }
