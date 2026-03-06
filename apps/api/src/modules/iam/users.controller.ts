@@ -12,6 +12,7 @@ import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
 import { PermissionsGuard } from "../../common/guards/permissions.guard";
 import { Permissions } from "../../common/decorators/permissions.decorator";
+import { CompanyId } from "../../common/decorators/company-id.decorator";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
 import { UsersService } from "./users.service";
 import { CreateUserDto } from "./dto/create-user.dto";
@@ -38,8 +39,12 @@ export class UsersController {
 
   @Post()
   @Permissions("iam.write")
-  create(@Body() dto: CreateUserDto, @CurrentUser() user: { sub: string }) {
-    return this.usersService.create(dto, user?.sub);
+  create(
+    @Body() dto: CreateUserDto,
+    @CurrentUser() user: { sub: string },
+    @CompanyId() companyId?: string,
+  ) {
+    return this.usersService.create(dto, user?.sub, companyId);
   }
 
   @Patch(":id")
@@ -48,8 +53,9 @@ export class UsersController {
     @Param("id") id: string,
     @Body() dto: UpdateUserDto,
     @CurrentUser() user: { sub: string },
+    @CompanyId() companyId?: string,
   ) {
-    return this.usersService.update(id, dto, user?.sub);
+    return this.usersService.update(id, dto, user?.sub, companyId);
   }
 
   @Delete(":id")

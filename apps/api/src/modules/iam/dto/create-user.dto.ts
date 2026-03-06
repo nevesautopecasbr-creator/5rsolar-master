@@ -1,4 +1,4 @@
-import { IsEmail, IsOptional, IsString, MinLength } from "class-validator";
+import { IsEmail, IsOptional, IsString, IsUUID, MinLength } from "class-validator";
 
 export class CreateUserDto {
   @IsString()
@@ -17,4 +17,7 @@ export class CreateUserDto {
 
   @IsOptional()
   isActive?: boolean;
+
+  @IsUUID("4", { message: "Perfil (role) é obrigatório" })
+  roleId: string;
 }
