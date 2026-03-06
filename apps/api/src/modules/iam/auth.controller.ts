@@ -48,8 +48,9 @@ export class AuthController {
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   @Get("me")
-  me(@CurrentUser() user: { sub: string; email: string }) {
-    return { id: user.sub, email: user.email };
+  async me(@CurrentUser() user: { sub: string; email: string }) {
+    const me = await this.authService.getUserWithCompany(user.sub);
+    return me ?? { id: user.sub, email: user.email, name: null, companyId: null, companyName: null };
   }
 
   private setAuthCookies(res: Response, accessToken: string, refreshToken: string) {

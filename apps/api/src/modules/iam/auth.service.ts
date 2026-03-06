@@ -56,8 +56,37 @@ export class AuthService {
     return { accessToken, refreshToken };
   }
 
+  /** Retorna dados do usuário com a primeira empresa (membership ativa) para contexto da sessão. */
+  async getUserWithCompany(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        memberships: {
+          where: { isActive: true },
+          take: 1,
+          orderBy: { createdAt: "asc" },
+          select: {
+            companyId: true,
+            company: { select: { name: true } },
+          },
+        },
+      },
+    });
+    if (!user) return null;
+    const first = user.memberships[0];
+    return {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      companyId: first?.companyId ?? null,
+      companyName: first?.company?.name ?? null,
+    };
+  }
+
   async login(email: string, password: string) {
-    const emailHasAt = email.includes("@");
     try {
       const user = await this.prisma.user.findUnique({ where: { email } });
       if (!user || !user.isActive) {
@@ -69,9 +98,10 @@ export class AuthService {
       }
 
       const tokens = await this.issueTokens(user.id, user.email);
+      const userWithCompany = await this.getUserWithCompany(user.id);
       return {
         ...tokens,
-        user: { id: user.id, name: user.name, email: user.email },
+        user: userWithCompany ?? { id: user.id, name: user.name, email: user.email, companyId: null, companyName: null },
       };
     } catch (error) {
       // #region agent log
@@ -130,15 +160,15 @@ export class AuthService {
       data: { revokedAt: new Date() },
     });
 
-    const user = await this.prisma.user.findUnique({ where: { id: payload.sub } });
-    if (!user) {
+    const userWithCompany = await this.getUserWithCompany(payload.sub);
+    if (!userWithCompany) {
       throw new UnauthorizedException("Usuário inválido");
     }
 
-    const tokens = await this.issueTokens(user.id, user.email);
+    const tokens = await this.issueTokens(userWithCompany.id, userWithCompany.email);
     return {
       ...tokens,
-      user: { id: user.id, name: user.name, email: user.email },
+      user: userWithCompany,
     };
   }
 
