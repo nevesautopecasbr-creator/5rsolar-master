@@ -16,7 +16,10 @@ RUN npm ci
 FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN npm run build && (test -f dist/main.js || test -f dist/src/main.js) || (echo "Build output:" && ls -la dist/ 2>/dev/null; ls -la dist/src/ 2>/dev/null; exit 1)
+RUN npm run build
+RUN test -f dist/main.js || test -f dist/src/main.js || (echo "Build output:" && ls -la dist/ 2>/dev/null; ls -la dist/src/ 2>/dev/null; exit 1)
+# Se o build gerou dist/src/main.js, use-o (alguns ambientes Nest/tsc geram assim)
+RUN if [ -f dist/src/main.js ] && [ ! -f dist/main.js ]; then cp dist/src/main.js dist/main.js; fi
 
 # Produção: copia app completo do builder (dist + node_modules + prisma)
 FROM base AS runner
