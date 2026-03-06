@@ -1,21 +1,20 @@
-import { IsEmail, IsNumber, IsOptional, IsString, Min } from "class-validator";
+import { IsArray, IsEmail, IsNumber, IsOptional, IsString, Min, ValidateNested } from "class-validator";
 import { Type } from "class-transformer";
+import { ConsumerUnitDto } from "./consumer-unit.dto";
 
 export class CreateCustomerDto {
   @IsString()
   name: string;
 
-  @IsOptional()
   @IsString()
-  document?: string;
+  document: string;
 
   @IsOptional()
   @IsEmail()
   email?: string;
 
-  @IsOptional()
   @IsString()
-  phone?: string;
+  phone: string;
 
   @IsOptional()
   @IsString()
@@ -33,15 +32,10 @@ export class CreateCustomerDto {
   @IsString()
   zipCode?: string;
 
-  /** Consumo atual em kWh (obrigatório para orçamento 5R). */
+  /** Unidades consumidoras (pode ter mais de uma). */
   @IsOptional()
-  @IsNumber()
-  @Min(0)
-  @Type(() => Number)
-  currentConsumptionKwh?: number;
-
-  /** Código da Unidade Consumidora (UC) na concessionária. */
-  @IsOptional()
-  @IsString()
-  consumerUnitCode?: string;
-}
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ConsumerUnitDto)
+  consumerUnits?: ConsumerUnitDto[];
+}
