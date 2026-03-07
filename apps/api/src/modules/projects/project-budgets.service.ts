@@ -97,6 +97,13 @@ export class ProjectBudgetsService {
         consumptionKwh: consumptionKwh != null ? new Decimal(consumptionKwh) : undefined,
         consumerUnitCode: consumerUnitCode ?? undefined,
         systemPowerKwp: systemPowerKwp != null ? new Decimal(systemPowerKwp) : undefined,
+        monthlySavings: dto.monthlySavings != null ? new Decimal(dto.monthlySavings) : undefined,
+        paybackYears: dto.paybackYears != null ? new Decimal(dto.paybackYears) : undefined,
+        paymentTerms: dto.paymentTerms ?? undefined,
+        fioBPct: dto.fioBPct != null ? new Decimal(dto.fioBPct) : undefined,
+        simultaneityFactor: dto.simultaneityFactor != null ? new Decimal(dto.simultaneityFactor) : undefined,
+        consumerGroup: dto.consumerGroup ?? undefined,
+        modality: dto.modality ?? undefined,
         laborCost: dto.laborCost,
         materialCost: dto.materialCost,
         taxAmount: dto.taxAmount,
@@ -137,6 +144,13 @@ export class ProjectBudgetsService {
         consumptionKwh: dto.consumptionKwh != null ? new Decimal(dto.consumptionKwh) : undefined,
         consumerUnitCode: dto.consumerUnitCode,
         systemPowerKwp: dto.systemPowerKwp != null ? new Decimal(dto.systemPowerKwp) : undefined,
+        monthlySavings: dto.monthlySavings != null ? new Decimal(dto.monthlySavings) : undefined,
+        paybackYears: dto.paybackYears != null ? new Decimal(dto.paybackYears) : undefined,
+        paymentTerms: dto.paymentTerms,
+        fioBPct: dto.fioBPct != null ? new Decimal(dto.fioBPct) : undefined,
+        simultaneityFactor: dto.simultaneityFactor != null ? new Decimal(dto.simultaneityFactor) : undefined,
+        consumerGroup: dto.consumerGroup,
+        modality: dto.modality,
         laborCost: dto.laborCost,
         materialCost: dto.materialCost,
         taxAmount: dto.taxAmount,
@@ -224,12 +238,45 @@ export class ProjectBudgetsService {
           })
         : "-";
 
+    const monthlySavings =
+      budget.monthlySavings != null
+        ? Number(budget.monthlySavings).toLocaleString("pt-BR", {
+            style: "currency",
+            currency: "BRL",
+          })
+        : null;
+    const paybackYears =
+      budget.paybackYears != null ? Number(budget.paybackYears) : null;
+    const paymentTerms = budget.paymentTerms?.trim() || null;
+    const fioBPct =
+      budget.fioBPct != null ? `${(Number(budget.fioBPct) * 100).toFixed(1)}%` : null;
+    const simultaneityFactor =
+      budget.simultaneityFactor != null ? Number(budget.simultaneityFactor) : null;
+    const consumerGroup = budget.consumerGroup ?? null;
+    const modality = budget.modality ?? null;
+
     const products = (budget.productsUsed as Array<{ name?: string; quantity?: number; price?: number }>) ?? [];
     const productsLines = products
       .map(
         (p, i) =>
           `${i + 1}. ${p.name ?? "-"} - Qtd: ${p.quantity ?? 0} - R$ ${Number(p.price ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
       )
+      .join("\n");
+
+    const solarSection = [
+      "",
+      "Proposta Solar (simulação e regulatório):",
+      monthlySavings != null ? `Economia mensal estimada: ${monthlySavings}` : "",
+      paybackYears != null ? `Payback estimado: ${paybackYears} anos` : "",
+      paymentTerms ? `Condições de pagamento: ${paymentTerms}` : "",
+      consumerGroup ? `Grupo consumidor: ${consumerGroup}` : "",
+      modality ? `Modalidade: ${modality}` : "",
+      fioBPct != null ? `Premissa Lei 14.300 - Fio B: ${fioBPct}` : "",
+      simultaneityFactor != null
+        ? `Premissa - Fator de simultaneidade: ${simultaneityFactor}`
+        : "",
+    ]
+      .filter(Boolean)
       .join("\n");
 
     const text = [
@@ -240,6 +287,7 @@ export class ProjectBudgetsService {
       `Unidade consumidora (UC): ${consumerUnitCode}`,
       `Consumo (kWh/mês): ${consumptionKwh ?? "-"}`,
       `Potência do sistema (kWp): ${systemPowerKwp ?? "-"}`,
+      solarSection,
       "",
       "Dados do orçamento (Passo 2):",
       `Mão de obra: ${laborCost}`,

@@ -556,6 +556,20 @@ model ProjectBudget {
   notes             String?
   /// URL do PDF da Proposta Comercial gerado (Supabase Storage ou local)
   proposalPdfUrl    String?
+  /// Economia mensal estimada (R$) — simulador/proposta solar
+  monthlySavings    Decimal?  @db.Decimal(15, 2)
+  /// Payback estimado em anos — proposta solar
+  paybackYears      Decimal?  @db.Decimal(10, 2)
+  /// Condições de pagamento (texto livre) — proposta solar
+  paymentTerms      String?
+  /// Lei 14.300: percentual fio B (ex.: 0.15 = 15%) — usado no simulador
+  fioBPct           Decimal?  @db.Decimal(10, 6)
+  /// Fator de simultaneidade (ex.: 0.8) — usado no simulador
+  simultaneityFactor Decimal? @db.Decimal(10, 6)
+  /// Grupo do consumidor (A ou B) — regulatório
+  consumerGroup     String?
+  /// Modalidade (ex.: autoconsumo local, remoto, geração compartilhada)
+  modality         String?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
   createdById       String?   @db.Uuid

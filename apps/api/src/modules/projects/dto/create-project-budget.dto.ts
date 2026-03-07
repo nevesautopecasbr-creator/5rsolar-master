@@ -51,6 +51,45 @@ export class CreateProjectBudgetDto {
   @IsNumber()
   systemPowerKwp?: number;
 
+  /** Economia mensal estimada (R$) — proposta solar */
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  monthlySavings?: number;
+
+  /** Payback estimado em anos — proposta solar */
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  paybackYears?: number;
+
+  /** Condições de pagamento (texto) — proposta solar */
+  @IsOptional()
+  @IsString()
+  paymentTerms?: string;
+
+  /** Lei 14.300: percentual fio B (0–1) */
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  fioBPct?: number;
+
+  /** Fator de simultaneidade (0–1) */
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  simultaneityFactor?: number;
+
+  /** Grupo consumidor (A/B) */
+  @IsOptional()
+  @IsString()
+  consumerGroup?: string;
+
+  /** Modalidade (autoconsumo local, remoto, etc.) */
+  @IsOptional()
+  @IsString()
+  modality?: string;
+
   @Type(() => Number)
   @IsNumber()
   laborCost: number;
