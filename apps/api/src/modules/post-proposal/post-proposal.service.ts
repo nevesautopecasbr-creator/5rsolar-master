@@ -398,31 +398,55 @@ export class PostProposalService {
 
   private renderContractHtml(
     contract: {
+      totalValue?: Numberish;
       customer: {
         name: string;
         document?: string | null;
         email?: string | null;
         phone?: string | null;
+        address?: string | null;
       };
-      project: { name: string };
+      project: {
+        name: string;
+        kWp?: Numberish;
+        address?: string | null;
+        city?: string | null;
+        state?: string | null;
+      };
       template: { content: string } | null;
     },
     signedName: string,
   ) {
-    const template = contract.template?.content ?? "<h1>Contrato</h1>";
-    return template
+    const totalValueStr =
+      contract.totalValue != null
+        ? Number(contract.totalValue).toLocaleString("pt-BR", {
+            style: "currency",
+            currency: "BRL",
+          })
+        : "-";
+    const projectKwpStr =
+      contract.project?.kWp != null ? String(contract.project.kWp) : "-";
+    const templateContent = contract.template?.content ?? "<h1>Contrato</h1>";
+    return templateContent
       .replace(/\{\{customerName\}\}/g, contract.customer.name ?? "-")
       .replace(/\{\{customerDocument\}\}/g, contract.customer.document ?? "-")
       .replace(/\{\{customerEmail\}\}/g, contract.customer.email ?? "-")
       .replace(/\{\{customerPhone\}\}/g, contract.customer.phone ?? "-")
+      .replace(/\{\{customerAddress\}\}/g, contract.customer.address ?? "-")
       .replace(/\{\{projectName\}\}/g, contract.project.name ?? "-")
+      .replace(/\{\{projectKwp\}\}/g, projectKwpStr)
+      .replace(/\{\{projectAddress\}\}/g, contract.project.address ?? "-")
+      .replace(/\{\{projectCity\}\}/g, contract.project.city ?? "-")
+      .replace(/\{\{projectState\}\}/g, contract.project.state ?? "-")
+      .replace(/\{\{totalValue\}\}/g, totalValueStr)
       .replace(/\{\{signedName\}\}/g, signedName ?? "-");
   }
 
   private generateContractPdf(
     contract: {
+      totalValue?: Numberish;
       customer: { name: string; document?: string | null };
-      project: { name: string };
+      project: { name: string; kWp?: Numberish };
       template: { content: string } | null;
     },
     signedName: string,

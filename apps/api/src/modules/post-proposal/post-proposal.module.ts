@@ -10,6 +10,6 @@ import { WorkflowModule } from "../workflow/workflow.module";
   imports: [PrismaModule, IamModule, WorkflowModule],
   controllers: [PostProposalController],
   providers: [PostProposalService, FileService],
-  exports: [PostProposalService],
+  exports: [PostProposalService, FileService],
 })
 export class PostProposalModule {}

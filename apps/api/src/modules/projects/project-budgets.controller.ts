@@ -44,6 +44,16 @@ export class ProjectBudgetsController {
     return this.service.getBudgetContextFromProject(projectId, companyId);
   }
 
+  @Post(":id/generate-pdf")
+  @Permissions("projetos.write")
+  generateProposalPdf(
+    @Param("id") id: string,
+    @CompanyId() companyId: string | undefined,
+    @CurrentUser() user: { sub: string },
+  ) {
+    return this.service.generateProposalPdf(id, companyId, user?.sub);
+  }
+
   @Get(":id")
   @Permissions("projetos.read")
   findOne(@Param("id") id: string, @CompanyId() companyId?: string) {

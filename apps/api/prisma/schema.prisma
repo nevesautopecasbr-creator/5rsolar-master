@@ -554,6 +554,8 @@ model ProjectBudget {
   totalValue        Decimal   @db.Decimal(15, 2)
   productsUsed      Json?
   notes             String?
+  /// URL do PDF da Proposta Comercial gerado (Supabase Storage ou local)
+  proposalPdfUrl    String?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
   createdById       String?   @db.Uuid
