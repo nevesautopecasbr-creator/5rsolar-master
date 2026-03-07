@@ -34,6 +34,23 @@ export class CreateProjectBudgetDto {
   @IsString()
   customerName?: string;
 
+  /** Consumo em kWh (preenchido automaticamente pelo projeto/cliente se não informado) */
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  consumptionKwh?: number;
+
+  /** Código da unidade consumidora (preenchido automaticamente pelo projeto/cliente se não informado) */
+  @IsOptional()
+  @IsString()
+  consumerUnitCode?: string;
+
+  /** Potência do sistema em kWp (preenchida automaticamente pelo projeto se não informada) */
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  systemPowerKwp?: number;
+
   @Type(() => Number)
   @IsNumber()
   laborCost: number;

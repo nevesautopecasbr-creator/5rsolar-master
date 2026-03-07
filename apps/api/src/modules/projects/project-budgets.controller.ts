@@ -35,6 +35,15 @@ export class ProjectBudgetsController {
     return this.service.findAll(companyId, projectId);
   }
 
+  @Get("context/:projectId")
+  @Permissions("projetos.read")
+  getBudgetContext(
+    @Param("projectId") projectId: string,
+    @CompanyId() companyId?: string,
+  ) {
+    return this.service.getBudgetContextFromProject(projectId, companyId);
+  }
+
   @Get(":id")
   @Permissions("projetos.read")
   findOne(@Param("id") id: string, @CompanyId() companyId?: string) {

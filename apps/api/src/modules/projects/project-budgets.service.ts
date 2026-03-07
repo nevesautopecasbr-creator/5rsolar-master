@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
+import { Decimal } from "@prisma/client/runtime/library";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { AuditService } from "../iam/audit.service";
@@ -11,6 +12,34 @@ export class ProjectBudgetsService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
   ) {}
+
+  /** Retorna dados do projeto/cliente para preencher o orçamento (consumo, UC, potência, nome do cliente) */
+  async getBudgetContextFromProject(projectId: string, companyId?: string) {
+    const project = await this.prisma.project.findFirst({
+      where: { id: projectId, ...(companyId ? { companyId } : {}) },
+      include: {
+        customer: {
+          include: { consumerUnits: true },
+        },
+      },
+    });
+    if (!project) return null;
+    const customer = project.customer;
+    const consumptionKwh =
+      customer?.consumerUnits?.[0]?.currentConsumptionKwh ??
+      (customer as { currentConsumptionKwh?: Decimal | null })?.currentConsumptionKwh ??
+      null;
+    const consumerUnitCode =
+      customer?.consumerUnits?.[0]?.consumerUnitCode ??
+      (customer as { consumerUnitCode?: string | null })?.consumerUnitCode ??
+      null;
+    return {
+      customerName: customer?.name ?? null,
+      consumptionKwh: consumptionKwh != null ? Number(consumptionKwh) : null,
+      consumerUnitCode,
+      systemPowerKwp: project.kWp != null ? Number(project.kWp) : null,
+    };
+  }
 
   async findAll(companyId?: string, projectId?: string) {
     return this.prisma.projectBudget.findMany({
@@ -39,11 +68,29 @@ export class ProjectBudgetsService {
     dto: CreateProjectBudgetDto,
     actorId?: string,
   ) {
+    let customerName = dto.customerName;
+    let consumptionKwh = dto.consumptionKwh;
+    let consumerUnitCode = dto.consumerUnitCode;
+    let systemPowerKwp = dto.systemPowerKwp;
+
+    if (dto.projectId) {
+      const context = await this.getBudgetContextFromProject(dto.projectId, companyId);
+      if (context) {
+        if (customerName == null || customerName === "") customerName = context.customerName ?? undefined;
+        if (consumptionKwh == null && context.consumptionKwh != null) consumptionKwh = context.consumptionKwh;
+        if (consumerUnitCode == null || consumerUnitCode === "") consumerUnitCode = context.consumerUnitCode ?? undefined;
+        if (systemPowerKwp == null && context.systemPowerKwp != null) systemPowerKwp = context.systemPowerKwp;
+      }
+    }
+
     const created = await this.prisma.projectBudget.create({
       data: {
         companyId,
         projectId: dto.projectId ?? undefined,
-        customerName: dto.customerName,
+        customerName: customerName ?? undefined,
+        consumptionKwh: consumptionKwh != null ? new Decimal(consumptionKwh) : undefined,
+        consumerUnitCode: consumerUnitCode ?? undefined,
+        systemPowerKwp: systemPowerKwp != null ? new Decimal(systemPowerKwp) : undefined,
         laborCost: dto.laborCost,
         materialCost: dto.materialCost,
         taxAmount: dto.taxAmount,
@@ -81,6 +128,9 @@ export class ProjectBudgetsService {
       data: {
         projectId: dto.projectId,
         customerName: dto.customerName,
+        consumptionKwh: dto.consumptionKwh != null ? new Decimal(dto.consumptionKwh) : undefined,
+        consumerUnitCode: dto.consumerUnitCode,
+        systemPowerKwp: dto.systemPowerKwp != null ? new Decimal(dto.systemPowerKwp) : undefined,
         laborCost: dto.laborCost,
         materialCost: dto.materialCost,
         taxAmount: dto.taxAmount,
