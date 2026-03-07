@@ -57,7 +57,11 @@ export class ProjectBudgetsService {
   async findOne(id: string, companyId?: string) {
     const budget = await this.prisma.projectBudget.findFirst({
       where: { id, ...(companyId ? { companyId } : {}) },
-      include: { project: true },
+      include: {
+        project: {
+          include: { customer: true },
+        },
+      },
     });
     if (!budget) {
       throw new NotFoundException("Orçamento não encontrado");
