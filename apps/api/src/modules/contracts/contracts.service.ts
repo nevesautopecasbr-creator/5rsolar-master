@@ -15,19 +15,89 @@ export class ContractsService {
   async findAll(companyId?: string) {
     return this.prisma.contract.findMany({
       where: companyId ? { companyId } : undefined,
-      include: { receivables: true, addenda: true },
+      include: {
+        project: true,
+        customer: true,
+        receivables: true,
+        addenda: true,
+      },
+      orderBy: { createdAt: "desc" },
     });
   }
 
   async findOne(id: string, companyId?: string) {
     const contract = await this.prisma.contract.findFirst({
       where: companyId ? { id, companyId } : { id },
-      include: { receivables: true, addenda: true },
+      include: {
+        project: true,
+        customer: true,
+        receivables: true,
+        addenda: true,
+      },
     });
     if (!contract) {
       throw new NotFoundException("Contrato não encontrado");
     }
     return contract;
+  }
+
+  /**
+   * Retorna dados do projeto, cliente e orçamento para preencher um novo contrato.
+   * Contratos derivados de projetos: cliente, consumo, endereço e valor vêm do projeto/orçamento.
+   */
+  async getContractContextFromProject(projectId: string, companyId?: string) {
+    const project = await this.prisma.project.findFirst({
+      where: { id: projectId, ...(companyId ? { companyId } : {}) },
+      include: {
+        customer: { include: { consumerUnits: true } },
+        budgets: { orderBy: { createdAt: "desc" }, take: 1 },
+      },
+    });
+    if (!project) {
+      throw new NotFoundException("Projeto não encontrado");
+    }
+    const customer = project.customer;
+    const latestBudget = project.budgets?.[0];
+    const consumptionKwh =
+      customer?.consumerUnits?.[0]?.currentConsumptionKwh ??
+      (customer as { currentConsumptionKwh?: { toString?: () => string } | null })?.currentConsumptionKwh;
+    const consumerUnitCode =
+      customer?.consumerUnits?.[0]?.consumerUnitCode ??
+      (customer as { consumerUnitCode?: string | null })?.consumerUnitCode ?? null;
+
+    return {
+      projectId: project.id,
+      customerId: customer?.id ?? null,
+      project: {
+        id: project.id,
+        name: project.name,
+        code: project.code,
+        kWp: project.kWp != null ? Number(project.kWp) : null,
+        address: project.address,
+        city: project.city,
+        state: project.state,
+        zipCode: project.zipCode,
+      },
+      customer: customer
+        ? {
+            id: customer.id,
+            name: customer.name,
+            document: customer.document,
+            email: customer.email,
+            phone: customer.phone,
+            address: customer.address,
+            city: customer.city,
+            state: customer.state,
+            zipCode: customer.zipCode,
+            consumptionKwh: consumptionKwh != null ? Number(consumptionKwh) : null,
+            consumerUnitCode,
+          }
+        : null,
+      suggestedTotalValue:
+        latestBudget?.totalValue != null ? Number(latestBudget.totalValue) : null,
+      consumptionKwh: consumptionKwh != null ? Number(consumptionKwh) : null,
+      consumerUnitCode,
+    };
   }
 
   private buildInstallments(
@@ -186,4 +256,4 @@ export class ContractsService {
 
     return addendum;
   }
-}
+}

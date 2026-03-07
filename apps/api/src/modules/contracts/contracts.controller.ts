@@ -32,6 +32,15 @@ export class ContractsController {
     return this.contractsService.findAll(companyId);
   }
 
+  @Get("context/:projectId")
+  @Permissions("contratos.read")
+  getContractContextFromProject(
+    @Param("projectId") projectId: string,
+    @CompanyId() companyId?: string,
+  ) {
+    return this.contractsService.getContractContextFromProject(projectId, companyId);
+  }
+
   @Get(":id")
   @Permissions("contratos.read")
   findOne(@Param("id") id: string, @CompanyId() companyId?: string) {
