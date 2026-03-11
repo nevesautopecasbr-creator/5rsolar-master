@@ -227,6 +227,98 @@ export class PostProposalService {
     return { url: contract.contractPdfUrl };
   }
 
+  /**
+   * Dispara a emissão dos PDFs "Contrato de Compra e Venda" e "Contrato de Prestação de Serviço"
+   * após fechamento/aceite do orçamento. Deve ser chamado logo após o fechamento bem-sucedido no banco.
+   */
+  async generateClosingContractPdfs(saleId: string, companyId?: string): Promise<void> {
+    const contract = await this.prisma.contract.findFirst({
+      where: { saleId, ...(companyId ? { companyId } : {}) },
+      include: { customer: true, project: true },
+    });
+    if (!contract) return;
+
+    const customerName = contract.customer?.name ?? "-";
+    const totalValueStr =
+      contract.totalValue != null
+        ? Number(contract.totalValue).toLocaleString("pt-BR", {
+            style: "currency",
+            currency: "BRL",
+          })
+        : "-";
+
+    const compraVendaText = [
+      "CONTRATO DE COMPRA E VENDA",
+      "",
+      "Entre as partes:",
+      `Cliente: ${customerName}`,
+      `Valor total: ${totalValueStr}`,
+      "",
+      "Documento gerado automaticamente no fechamento do orçamento.",
+    ].join("\n");
+
+    const prestacaoText = [
+      "CONTRATO DE PRESTAÇÃO DE SERVIÇO",
+      "",
+      "Entre as partes:",
+      `Cliente: ${customerName}`,
+      `Valor total: ${totalValueStr}`,
+      "",
+      "Documento gerado automaticamente no fechamento do orçamento.",
+    ].join("\n");
+
+    const compraVendaPdf = this.buildSimplePdf(compraVendaText, "Contrato de Compra e Venda");
+    const prestacaoPdf = this.buildSimplePdf(prestacaoText, "Contrato de Prestação de Serviço");
+
+    const [compraVendaResult, prestacaoResult] = await Promise.all([
+      this.files.saveBuffer(compraVendaPdf, `contrato-compra-venda-${contract.id}.pdf`),
+      this.files.saveBuffer(prestacaoPdf, `contrato-prestacao-servico-${contract.id}.pdf`),
+    ]);
+
+    await this.prisma.contract.update({
+      where: { id: contract.id },
+      data: {
+        compraVendaPdfUrl: compraVendaResult.fileUrl,
+        prestacaoServicoPdfUrl: prestacaoResult.fileUrl,
+      },
+    });
+  }
+
+  private buildSimplePdf(bodyText: string, title: string): Buffer {
+    const escape = (s: string) => s.replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
+    const header = "%PDF-1.4\n";
+    const lines = bodyText.slice(0, 3000).split("\n");
+    const pdfLines = [
+      "BT",
+      "/F1 11 Tf",
+      "50 800 Td",
+      `(${escape(title)}) Tj`,
+      "0 -14 Td",
+      ...lines.flatMap((line) => [`(${escape(line.slice(0, 100))}) Tj`, "0 -14 Td"]),
+      "ET",
+    ];
+    const content = pdfLines.join("\n");
+    const stream = `<< /Length ${content.length} >>\nstream\n${content}\nendstream`;
+    const objects = [
+      "1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n",
+      "2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n",
+      "3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>\nendobj\n",
+      `4 0 obj\n${stream}\nendobj\n`,
+      "5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n",
+    ];
+    let offset = header.length;
+    const xref = ["xref", `0 ${objects.length + 1}`, "0000000000 65535 f "];
+    const body = objects
+      .map((obj) => {
+        xref.push(`${offset.toString().padStart(10, "0")} 00000 n `);
+        offset += obj.length;
+        return obj;
+      })
+      .join("");
+    const trailer = `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${header.length + body.length}\n%%EOF`;
+    return Buffer.from(`${header}${body}${xref.join("\n")}\n${trailer}`);
+  }
+
   async getChecklistBySale(saleId: string, companyId?: string) {
     const checklist = await this.prisma.implementationChecklist.findFirst({
       where: { saleId, ...(companyId ? { companyId } : {}) },

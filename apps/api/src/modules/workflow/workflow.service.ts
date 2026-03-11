@@ -8,6 +8,7 @@ import {
   ChecklistStatus,
   ContractStatus,
   Prisma,
+  ProjectBudgetStatus,
   SaleStatus,
   SignatureType,
 } from "@prisma/client";
@@ -476,34 +477,105 @@ export class WorkflowEngineService {
   ) {
     if (context.entityType === "SALE" && context.action === "SALE_MARK_WON") {
       const sale = updated as { id: string; companyId: string | null; customerId: string };
-      const existing = await tx.contract.findFirst({
-        where: {
-          saleId: sale.id,
-          ...(sale.companyId ? { companyId: sale.companyId } : {}),
-        },
-      });
-      if (!existing) {
+      const budgetId = (context.payload?.budgetId ?? context.payload?.projectBudgetId) as string | undefined;
+
+      if (budgetId) {
+        // Fechamento atômico: orçamento aceito + projeto (criado ou vinculado) + contrato na mesma transação
+        const budget = await tx.projectBudget.findFirst({
+          where: { id: budgetId, ...(sale.companyId ? { companyId: sale.companyId } : {}) },
+        });
+        if (!budget) {
+          throw new NotFoundException("Orçamento não encontrado.");
+        }
+        if (budget.status !== ProjectBudgetStatus.PENDING) {
+          throw new BadRequestException("Orçamento já foi aceito ou não está pendente.");
+        }
         const template = await tx.contractTemplate.findFirst({
           where: { ...(sale.companyId ? { companyId: sale.companyId } : {}), isActive: true },
           orderBy: { createdAt: "desc" },
         });
-        const project = await tx.project.findFirst({
-          where: { customerId: sale.customerId, ...(sale.companyId ? { companyId: sale.companyId } : {}) },
-          orderBy: { createdAt: "desc" },
+        if (!template) {
+          throw new NotFoundException("Template de contrato não encontrado.");
+        }
+        let projectId: string;
+        if (budget.projectId) {
+          await tx.project.update({
+            where: { id: budget.projectId },
+            data: { projectBudgetId: budget.id, updatedById: context.actorId },
+          });
+          projectId = budget.projectId;
+        } else {
+          const created = await tx.project.create({
+            data: {
+              companyId: sale.companyId ?? undefined,
+              customerId: sale.customerId,
+              name: `Projeto ${((budget.customerName ?? "Orçamento aceito").trim()) || "Sem nome"}`,
+              kWp: budget.systemPowerKwp ?? undefined,
+              status: "PLANNING",
+              projectBudgetId: budget.id,
+              createdById: context.actorId,
+            },
+          });
+          projectId = created.id;
+        }
+        await tx.projectBudget.update({
+          where: { id: budget.id },
+          data: {
+            status: ProjectBudgetStatus.ACCEPTED,
+            acceptedAt: new Date(),
+            saleId: sale.id,
+            updatedById: context.actorId,
+          },
         });
-        if (template && project) {
+        const existingContract = await tx.contract.findFirst({
+          where: { saleId: sale.id, ...(sale.companyId ? { companyId: sale.companyId } : {}) },
+        });
+        if (!existingContract) {
           await tx.contract.create({
             data: {
               companyId: sale.companyId ?? undefined,
               saleId: sale.id,
               customerId: sale.customerId,
-              projectId: project.id,
+              projectId,
+              projectBudgetId: budget.id,
               templateId: template.id,
               status: ContractStatus.DRAFT,
-              totalValue: new Prisma.Decimal(0),
+              totalValue: budget.totalValue,
               createdById: context.actorId,
             },
           });
+        }
+      } else {
+        // Comportamento legado: contrato a partir de projeto existente (sem budgetId no payload)
+        const existing = await tx.contract.findFirst({
+          where: {
+            saleId: sale.id,
+            ...(sale.companyId ? { companyId: sale.companyId } : {}),
+          },
+        });
+        if (!existing) {
+          const template = await tx.contractTemplate.findFirst({
+            where: { ...(sale.companyId ? { companyId: sale.companyId } : {}), isActive: true },
+            orderBy: { createdAt: "desc" },
+          });
+          const project = await tx.project.findFirst({
+            where: { customerId: sale.customerId, ...(sale.companyId ? { companyId: sale.companyId } : {}) },
+            orderBy: { createdAt: "desc" },
+          });
+          if (template && project) {
+            await tx.contract.create({
+              data: {
+                companyId: sale.companyId ?? undefined,
+                saleId: sale.id,
+                customerId: sale.customerId,
+                projectId: project.id,
+                templateId: template.id,
+                status: ContractStatus.DRAFT,
+                totalValue: new Prisma.Decimal(0),
+                createdById: context.actorId,
+              },
+            });
+          }
         }
       }
     }
