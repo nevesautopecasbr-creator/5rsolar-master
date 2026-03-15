@@ -1,4 +1,13 @@
-import { IsArray, IsEmail, IsNumber, IsOptional, IsString, Min, ValidateNested } from "class-validator";
+import {
+  IsArray,
+  IsEmail,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Min,
+  ValidateIf,
+  ValidateNested,
+} from "class-validator";
 import { Type } from "class-transformer";
 import { ConsumerUnitDto } from "./consumer-unit.dto";
 
@@ -10,6 +19,7 @@ export class CreateCustomerDto {
   document: string;
 
   @IsOptional()
+  @ValidateIf((_o, v) => v != null && String(v).trim() !== "")
   @IsEmail()
   email?: string;
 
