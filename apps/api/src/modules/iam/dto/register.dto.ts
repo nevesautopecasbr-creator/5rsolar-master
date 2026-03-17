@@ -8,8 +8,8 @@ export class RegisterDto {
   email: string;
 
   @IsString()
-  @Matches(/^\(\d{2}\)\s?\d{4,5}\s?\d{4}$/, {
-    message: "Telefone deve estar no formato (XX) XXXXX XXXX",
+  @Matches(/^\d{10,11}$/, {
+    message: "Telefone deve conter 10 ou 11 dígitos (DDD + número)",
   })
   phone: string;
 
