@@ -50,14 +50,14 @@ export class ContractsService {
       where: { id: projectId, ...(companyId ? { companyId } : {}) },
       include: {
         customer: { include: { consumerUnits: true } },
-        budgets: { orderBy: { createdAt: "desc" }, take: 1 },
+        acceptedBudget: true,
       },
     });
     if (!project) {
       throw new NotFoundException("Projeto não encontrado");
     }
     const customer = project.customer;
-    const latestBudget = project.budgets?.[0];
+    const latestBudget = project.acceptedBudget;
     const consumptionKwh =
       customer?.consumerUnits?.[0]?.currentConsumptionKwh ??
       (customer as { currentConsumptionKwh?: { toString?: () => string } | null })?.currentConsumptionKwh;

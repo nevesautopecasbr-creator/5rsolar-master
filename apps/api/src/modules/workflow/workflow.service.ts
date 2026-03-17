@@ -480,7 +480,7 @@ export class WorkflowEngineService {
       const budgetId = (context.payload?.budgetId ?? context.payload?.projectBudgetId) as string | undefined;
 
       if (budgetId) {
-        // Fechamento atômico: orçamento aceito + projeto (criado ou vinculado) + contrato na mesma transação
+        // Fechamento atômico: orçamento aceito + projeto (sempre criado a partir do orçamento) + contrato na mesma transação
         const budget = await tx.projectBudget.findFirst({
           where: { id: budgetId, ...(sale.companyId ? { companyId: sale.companyId } : {}) },
         });
@@ -497,27 +497,18 @@ export class WorkflowEngineService {
         if (!template) {
           throw new NotFoundException("Template de contrato não encontrado.");
         }
-        let projectId: string;
-        if (budget.projectId) {
-          await tx.project.update({
-            where: { id: budget.projectId },
-            data: { projectBudgetId: budget.id, updatedById: context.actorId },
-          });
-          projectId = budget.projectId;
-        } else {
-          const created = await tx.project.create({
-            data: {
-              companyId: sale.companyId ?? undefined,
-              customerId: sale.customerId,
-              name: `Projeto ${((budget.customerName ?? "Orçamento aceito").trim()) || "Sem nome"}`,
-              kWp: budget.systemPowerKwp ?? undefined,
-              status: "PLANNING",
-              projectBudgetId: budget.id,
-              createdById: context.actorId,
-            },
-          });
-          projectId = created.id;
-        }
+        const created = await tx.project.create({
+          data: {
+            companyId: sale.companyId ?? undefined,
+            customerId: sale.customerId,
+            name: `Projeto ${((budget.customerName ?? "Orçamento aceito").trim()) || "Sem nome"}`,
+            kWp: budget.systemPowerKwp ?? undefined,
+            status: "PLANNING",
+            projectBudgetId: budget.id,
+            createdById: context.actorId,
+          },
+        });
+        const projectId = created.id;
         await tx.projectBudget.update({
           where: { id: budget.id },
           data: {

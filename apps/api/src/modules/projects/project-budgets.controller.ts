@@ -6,7 +6,6 @@ import {
   Param,
   Patch,
   Post,
-  Query,
   UseGuards,
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
@@ -28,11 +27,8 @@ export class ProjectBudgetsController {
 
   @Get()
   @Permissions("projetos.read")
-  findAll(
-    @CompanyId() companyId?: string,
-    @Query("projectId") projectId?: string,
-  ) {
-    return this.service.findAll(companyId, projectId);
+  findAll(@CompanyId() companyId?: string) {
+    return this.service.findAll(companyId);
   }
 
   @Get("context/:projectId")

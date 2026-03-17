@@ -540,7 +540,6 @@ model Project {
   warranties  Warranty[]
   attachments Attachment[]
   cashMoves   CashMovement[]
-  budgets     ProjectBudget[]
 
   @@index([companyId])
   @@index([customerId])
@@ -550,17 +549,16 @@ model Project {
 model ProjectBudget {
   id                String    @id @default(uuid()) @db.Uuid
   companyId         String?   @db.Uuid
-  projectId         String?   @db.Uuid
   /// Venda à qual o orçamento foi aceito (fechamento)
   saleId            String?   @db.Uuid
   status            ProjectBudgetStatus @default(PENDING)
   acceptedAt        DateTime?
   customerName      String?
-  /// Consumo em kWh (herdado do cliente/UC ou informado manualmente)
+  /// Consumo em kWh (informado na proposta)
   consumptionKwh    Decimal?  @db.Decimal(15, 2)
-  /// Código da unidade consumidora (herdado do cadastro do cliente)
+  /// Código da unidade consumidora (informado na proposta)
   consumerUnitCode  String?
-  /// Potência do sistema em kWp (herdado do projeto ou informado na proposta)
+  /// Potência do sistema em kWp (informada na proposta)
   systemPowerKwp    Decimal?  @db.Decimal(15, 2)
   laborCost         Decimal   @db.Decimal(15, 2)
   materialCost      Decimal   @db.Decimal(15, 2)
@@ -591,15 +589,13 @@ model ProjectBudget {
   updatedById       String?   @db.Uuid
 
   company Company? @relation(fields: [companyId], references: [id])
-  project Project? @relation(fields: [projectId], references: [id])
   sale Sale? @relation("BudgetAcceptedBySale", fields: [saleId], references: [id])
-  /// Projeto criado ao aceitar este orçamento (quando aplicável)
+  /// Projeto criado ao aceitar este orçamento (fechamento da venda)
   projectFromAcceptance Project? @relation("FromAcceptance")
   /// Contratos gerados a partir deste orçamento aceito
   contractsFromBudget Contract[]
 
   @@index([companyId])
-  @@index([projectId])
   @@index([saleId])
 }
 

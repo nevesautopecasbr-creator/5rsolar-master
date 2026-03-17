@@ -28,10 +28,6 @@ class ProjectBudgetProductSelectionDto {
 export class CreateProjectBudgetDto {
   @IsOptional()
   @IsString()
-  projectId?: string;
-
-  @IsOptional()
-  @IsString()
   customerName?: string;
 
   /** Consumo em kWh (preenchido automaticamente pelo projeto/cliente se não informado) */

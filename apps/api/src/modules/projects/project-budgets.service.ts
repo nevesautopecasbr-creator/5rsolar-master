@@ -43,13 +43,10 @@ export class ProjectBudgetsService {
     };
   }
 
-  async findAll(companyId?: string, projectId?: string) {
+  async findAll(companyId?: string) {
     return this.prisma.projectBudget.findMany({
-      where: {
-        ...(companyId ? { companyId } : {}),
-        ...(projectId ? { projectId } : {}),
-      },
-      include: { project: true },
+      where: { ...(companyId ? { companyId } : {}) },
+      include: { projectFromAcceptance: true, sale: true },
       orderBy: { createdAt: "desc" },
     });
   }
@@ -58,9 +55,8 @@ export class ProjectBudgetsService {
     const budget = await this.prisma.projectBudget.findFirst({
       where: { id, ...(companyId ? { companyId } : {}) },
       include: {
-        project: {
-          include: { customer: true },
-        },
+        projectFromAcceptance: true,
+        sale: { include: { customer: true } },
       },
     });
     if (!budget) {
@@ -74,29 +70,13 @@ export class ProjectBudgetsService {
     dto: CreateProjectBudgetDto,
     actorId?: string,
   ) {
-    let customerName = dto.customerName;
-    let consumptionKwh = dto.consumptionKwh;
-    let consumerUnitCode = dto.consumerUnitCode;
-    let systemPowerKwp = dto.systemPowerKwp;
-
-    if (dto.projectId) {
-      const context = await this.getBudgetContextFromProject(dto.projectId, companyId);
-      if (context) {
-        if (customerName == null || customerName === "") customerName = context.customerName ?? undefined;
-        if (consumptionKwh == null && context.consumptionKwh != null) consumptionKwh = context.consumptionKwh;
-        if (consumerUnitCode == null || consumerUnitCode === "") consumerUnitCode = context.consumerUnitCode ?? undefined;
-        if (systemPowerKwp == null && context.systemPowerKwp != null) systemPowerKwp = context.systemPowerKwp;
-      }
-    }
-
     const created = await this.prisma.projectBudget.create({
       data: {
         companyId,
-        projectId: dto.projectId ?? undefined,
-        customerName: customerName ?? undefined,
-        consumptionKwh: consumptionKwh != null ? new Decimal(consumptionKwh) : undefined,
-        consumerUnitCode: consumerUnitCode ?? undefined,
-        systemPowerKwp: systemPowerKwp != null ? new Decimal(systemPowerKwp) : undefined,
+        customerName: dto.customerName ?? undefined,
+        consumptionKwh: dto.consumptionKwh != null ? new Decimal(dto.consumptionKwh) : undefined,
+        consumerUnitCode: dto.consumerUnitCode ?? undefined,
+        systemPowerKwp: dto.systemPowerKwp != null ? new Decimal(dto.systemPowerKwp) : undefined,
         monthlySavings: dto.monthlySavings != null ? new Decimal(dto.monthlySavings) : undefined,
         paybackYears: dto.paybackYears != null ? new Decimal(dto.paybackYears) : undefined,
         paymentTerms: dto.paymentTerms ?? undefined,
@@ -123,7 +103,7 @@ export class ProjectBudgetsService {
       entityName: "ProjectBudget",
       entityId: created.id,
       action: "CREATE",
-      payload: { projectId: created.projectId, totalValue: created.totalValue },
+      payload: { totalValue: created.totalValue },
     });
 
     return this.findOne(created.id, companyId);
@@ -139,7 +119,6 @@ export class ProjectBudgetsService {
     const updated = await this.prisma.projectBudget.update({
       where: { id },
       data: {
-        projectId: dto.projectId,
         customerName: dto.customerName,
         consumptionKwh: dto.consumptionKwh != null ? new Decimal(dto.consumptionKwh) : undefined,
         consumerUnitCode: dto.consumerUnitCode,
@@ -170,7 +149,7 @@ export class ProjectBudgetsService {
       entityName: "ProjectBudget",
       entityId: updated.id,
       action: "UPDATE",
-      payload: { projectId: updated.projectId, totalValue: updated.totalValue },
+      payload: { totalValue: updated.totalValue },
     });
 
     return this.findOne(updated.id, companyId);
@@ -185,7 +164,7 @@ export class ProjectBudgetsService {
       entityName: "ProjectBudget",
       entityId: deleted.id,
       action: "DELETE",
-      payload: { projectId: deleted.projectId, totalValue: deleted.totalValue },
+      payload: { totalValue: deleted.totalValue },
     });
     return deleted;
   }
@@ -197,13 +176,16 @@ export class ProjectBudgetsService {
   async generateProposalPdf(id: string, companyId?: string, actorId?: string) {
     const budget = await this.prisma.projectBudget.findFirst({
       where: { id, ...(companyId ? { companyId } : {}) },
-      include: { project: { include: { customer: true } } },
+      include: { sale: { include: { customer: true } } },
     });
     if (!budget) {
       throw new NotFoundException("Orçamento não encontrado");
     }
 
-    const customerName = budget.customerName ?? budget.project?.customer?.name ?? "-";
+    const customerName =
+      budget.customerName ??
+      (budget.sale?.customer as { name?: string } | null)?.name ??
+      "-";
     const consumptionKwh =
       budget.consumptionKwh != null ? Number(budget.consumptionKwh) : null;
     const consumerUnitCode = budget.consumerUnitCode ?? "-";
