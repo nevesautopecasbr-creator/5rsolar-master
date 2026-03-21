@@ -4,6 +4,7 @@ import {
   IsBoolean,
   IsDateString,
   IsEnum,
+  IsIn,
   IsNumber,
   IsOptional,
   IsString,
@@ -26,6 +27,28 @@ function toIsoDate(v: unknown): string {
   }
   if (v instanceof Date) return v.toISOString().slice(0, 10);
   return String(v ?? "");
+}
+
+function normalizePayableStatus(v: unknown): string {
+  const raw = String(v ?? "").trim().toUpperCase();
+  if (!raw) return raw;
+  if (raw === "EM_ABERTO" || raw === "EM ABERTO" || raw === "ABERTO" || raw === "OPEN") {
+    return PayableStatus.OPEN;
+  }
+  if (raw === "PAGO" || raw === "PAID") {
+    return PayableStatus.PAID;
+  }
+  return raw;
+}
+
+function normalizePaymentMethod(v: unknown): string | undefined {
+  const raw = String(v ?? "").trim().toUpperCase();
+  if (!raw) return undefined;
+  if (raw === "CARTÃO" || raw === "CARTAO" || raw === "CARD") return "CARTAO";
+  if (raw === "PIX") return "PIX";
+  if (raw === "BOLETO") return "BOLETO";
+  if (raw === "DINHEIRO" || raw === "CASH") return "DINHEIRO";
+  return raw;
 }
 
 export class CreatePayableDto {
@@ -57,7 +80,9 @@ export class CreatePayableDto {
   dueDate: string;
 
   @IsOptional()
+  @Transform(({ value }) => normalizePayableStatus(value))
   @IsEnum(PayableStatus)
+  @IsIn([PayableStatus.OPEN, PayableStatus.PAID])
   status?: PayableStatus;
 
   @IsOptional()
@@ -66,6 +91,8 @@ export class CreatePayableDto {
   paidAt?: string;
 
   @IsOptional()
+  @Transform(({ value }) => normalizePaymentMethod(value))
+  @IsIn(["PIX", "CARTAO", "BOLETO", "DINHEIRO"])
   @IsString()
   paymentMethod?: string;
 
