@@ -29,4 +29,5 @@ ENV PRISMA_QUERY_ENGINE_LIBRARY=/app/node_modules/.prisma/client/libquery_engine
 COPY --from=builder /app ./
 
 EXPOSE 3000
-CMD ["node", "dist/main.js"]
+# Aplica migrações pendentes antes de subir (ex.: tabela DocumentTemplate)
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main.js"]
