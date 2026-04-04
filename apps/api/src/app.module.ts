@@ -15,6 +15,7 @@ import { PricingModule } from "./modules/pricing/pricing.module";
 import { PostProposalModule } from "./modules/post-proposal/post-proposal.module";
 import { WorkflowModule } from "./modules/workflow/workflow.module";
 import { MondayModule } from "./modules/monday/monday.module";
+import { DocumentTemplatesModule } from "./modules/document-templates/document-templates.module";
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { MondayModule } from "./modules/monday/monday.module";
     PostProposalModule,
     WorkflowModule,
     MondayModule,
+    DocumentTemplatesModule,
   ],
 })
 export class AppModule implements NestModule {

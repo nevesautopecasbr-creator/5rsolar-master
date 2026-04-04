@@ -6,6 +6,7 @@ import { AuditService } from "../iam/audit.service";
 import { FileService } from "../post-proposal/storage/file.service";
 import { CreateProjectBudgetDto } from "./dto/create-project-budget.dto";
 import { UpdateProjectBudgetDto } from "./dto/update-project-budget.dto";
+import { DocumentTemplatesService } from "../document-templates/document-templates.service";
 
 @Injectable()
 export class ProjectBudgetsService {
@@ -13,6 +14,7 @@ export class ProjectBudgetsService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly files: FileService,
+    private readonly documentTemplates: DocumentTemplatesService,
   ) {}
 
   /** Retorna dados do projeto/cliente para preencher o orçamento (consumo, UC, potência, nome do cliente) */
@@ -261,7 +263,7 @@ export class ProjectBudgetsService {
       .filter(Boolean)
       .join("\n");
 
-    const text = [
+    const defaultText = [
       "PROPOSTA COMERCIAL",
       "",
       "Dados do cliente (Passo 1):",
@@ -281,6 +283,30 @@ export class ProjectBudgetsService {
     ]
       .filter(Boolean)
       .join("\n");
+
+    const activeTemplate = await this.documentTemplates.getActiveByType("PROPOSAL", companyId);
+    const renderedTemplate = activeTemplate
+      ? this.renderProposalTemplate(activeTemplate.content, {
+          customerName,
+          consumerUnitCode,
+          consumptionKwh: consumptionKwh ?? "-",
+          systemPowerKwp: systemPowerKwp ?? "-",
+          monthlySavings: monthlySavings ?? "-",
+          paybackYears: paybackYears != null ? `${paybackYears} anos` : "-",
+          paymentTerms: paymentTerms ?? "-",
+          fioBPct: fioBPct ?? "-",
+          simultaneityFactor: simultaneityFactor != null ? String(simultaneityFactor) : "-",
+          consumerGroup: consumerGroup ?? "-",
+          modality: modality ?? "-",
+          laborCost,
+          materialCost,
+          taxAmount,
+          totalValue,
+          notes: budget.notes ?? "-",
+          productsList: productsLines || "-",
+        })
+      : defaultText;
+    const text = renderedTemplate.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 
     const pdfBuffer = this.buildSimplePdf(text, "Proposta Comercial");
     const pdfResult = await this.files.saveBuffer(
@@ -348,5 +374,12 @@ export class ProjectBudgetsService {
     const xrefOffset = header.length + body.length;
     const trailer = `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
     return Buffer.from(`${header}${body}${xref.join("\n")}\n${trailer}`);
+  }
+
+  private renderProposalTemplate(template: string, values: Record<string, string | number>) {
+    return template.replace(/\{\{(\w+)\}\}/g, (_, key: string) => {
+      const value = values[key];
+      return value === undefined || value === null ? "-" : String(value);
+    });
   }
 }

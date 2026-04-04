@@ -4,6 +4,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { AuditService } from "../iam/audit.service";
 import { FileService } from "./storage/file.service";
 import { WorkflowEngineService } from "../workflow/workflow.service";
+import { DocumentTemplatesService } from "../document-templates/document-templates.service";
 
 type Numberish = number | string | Prisma.Decimal | null | undefined;
 
@@ -26,6 +27,7 @@ export class PostProposalService {
     private readonly audit: AuditService,
     private readonly files: FileService,
     private readonly workflow: WorkflowEngineService,
+    private readonly documentTemplates: DocumentTemplatesService,
   ) {}
 
   private toNumber(value: Numberish) {
@@ -184,7 +186,7 @@ export class PostProposalService {
       signatureUrl = result.fileUrl;
     }
 
-    const pdfContent = this.generateContractPdf(contract, payload.signedName);
+    const pdfContent = await this.generateContractPdf(contract, payload.signedName, companyId);
     const pdfResult = await this.files.saveBuffer(
       pdfContent,
       `contract-${contract.id}.pdf`,
@@ -534,7 +536,7 @@ export class PostProposalService {
       .replace(/\{\{signedName\}\}/g, signedName ?? "-");
   }
 
-  private generateContractPdf(
+  private async generateContractPdf(
     contract: {
       totalValue?: Numberish;
       customer: { name: string; document?: string | null };
@@ -542,8 +544,14 @@ export class PostProposalService {
       template: { content: string } | null;
     },
     signedName: string,
+    companyId?: string,
   ) {
-    const text = this.renderContractHtml(contract, signedName)
+    const activeTemplate = await this.documentTemplates.getActiveByType("CONTRACT", companyId);
+    const templateAwareContract = {
+      ...contract,
+      template: activeTemplate ? { content: activeTemplate.content } : contract.template,
+    };
+    const text = this.renderContractHtml(templateAwareContract, signedName)
       .replace(/<[^>]+>/g, " ")
       .replace(/\s+/g, " ")
       .trim();

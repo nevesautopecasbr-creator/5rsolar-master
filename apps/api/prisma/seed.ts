@@ -236,6 +236,29 @@ async function main() {
     },
   });
 
+  await prisma.documentTemplate.deleteMany({ where: { companyId: company.id } });
+  await prisma.documentTemplate.createMany({
+    data: [
+      {
+        companyId: company.id,
+        name: "Contrato padrão",
+        type: "CONTRACT",
+        content: template.content,
+        isActive: true,
+        isDefault: true,
+      },
+      {
+        companyId: company.id,
+        name: "Proposta padrão",
+        type: "PROPOSAL",
+        content:
+          "<h1>Proposta Comercial</h1><p><strong>Cliente:</strong> {{customerName}}</p><p><strong>UC:</strong> {{consumerUnitCode}}</p><p><strong>Consumo:</strong> {{consumptionKwh}}</p><p><strong>Potência:</strong> {{systemPowerKwp}}</p><p><strong>Economia mensal:</strong> {{monthlySavings}}</p><p><strong>Payback:</strong> {{paybackYears}}</p><p><strong>Condições:</strong> {{paymentTerms}}</p><p><strong>Valor total:</strong> {{totalValue}}</p><p><strong>Itens:</strong> {{productsList}}</p><p><strong>Observações:</strong> {{notes}}</p>",
+        isActive: true,
+        isDefault: true,
+      },
+    ],
+  });
+
   const checklistTemplate = await prisma.implementationChecklistTemplate.create({
     data: {
       companyId: company.id,

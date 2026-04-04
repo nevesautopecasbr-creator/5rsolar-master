@@ -1,19 +1,32 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CreateCashMovementDto } from "./dto/create-cash-movement.dto";
 import { AuditService } from "../iam/audit.service";
 
 @Injectable()
 export class CashMovementsService {
+  private readonly logger = new Logger(CashMovementsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
   ) {}
 
   async findAll(companyId?: string) {
-    return this.prisma.cashMovement.findMany({
-      where: companyId ? { companyId } : undefined,
-    });
+    try {
+      const list = await this.prisma.cashMovement.findMany({
+        where: companyId ? { companyId } : undefined,
+        orderBy: { movementDate: "desc" },
+      });
+      // Normaliza Decimal para número para evitar falhas na serialização JSON.
+      return list.map((m) => ({ ...m, amount: Number(m.amount) }));
+    } catch (error) {
+      this.logger.error(
+        `Erro ao listar movimentações de caixa (companyId=${companyId ?? "-"})`,
+        error instanceof Error ? error.stack : String(error),
+      );
+      throw error;
+    }
   }
 
   async findOne(id: string, companyId?: string) {
@@ -31,21 +44,30 @@ export class CashMovementsService {
     dto: CreateCashMovementDto,
     actorId?: string,
   ) {
-    const created = await this.prisma.cashMovement.create({
-      data: {
-        companyId,
-        cashAccountId: dto.cashAccountId,
-        projectId: dto.projectId,
-        accountId: dto.accountId,
-        payableId: dto.payableId,
-        receivableId: dto.receivableId,
-        direction: dto.direction,
-        amount: dto.amount,
-        movementDate: dto.movementDate ? new Date(dto.movementDate) : undefined,
-        description: dto.description,
-        createdById: actorId,
-      },
-    });
+    let created;
+    try {
+      created = await this.prisma.cashMovement.create({
+        data: {
+          companyId,
+          cashAccountId: dto.cashAccountId,
+          projectId: dto.projectId,
+          accountId: dto.accountId,
+          payableId: dto.payableId,
+          receivableId: dto.receivableId,
+          direction: dto.direction,
+          amount: dto.amount,
+          movementDate: dto.movementDate ? new Date(dto.movementDate) : undefined,
+          description: dto.description,
+          createdById: actorId,
+        },
+      });
+    } catch (error) {
+      this.logger.error(
+        `Erro ao criar movimentação de caixa (companyId=${companyId ?? "-"} cashAccountId=${dto.cashAccountId})`,
+        error instanceof Error ? error.stack : String(error),
+      );
+      throw error;
+    }
 
     await this.audit.log({
       actorId,
@@ -56,6 +78,6 @@ export class CashMovementsService {
       payload: { amount: created.amount },
     });
 
-    return created;
+    return { ...created, amount: Number(created.amount) };
   }
-}
+}

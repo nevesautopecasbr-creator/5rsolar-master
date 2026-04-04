@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
@@ -27,8 +28,8 @@ export class CustomersController {
 
   @Get()
   @Permissions("cadastros.read")
-  findAll(@CompanyId() companyId?: string) {
-    return this.customersService.findAll(companyId);
+  findAll(@CompanyId() companyId?: string, @Query("q") q?: string) {
+    return this.customersService.findAll(companyId, q);
   }
 
   @Get(":id")
@@ -67,4 +68,4 @@ export class CustomersController {
   ) {
     return this.customersService.remove(id, user?.sub, companyId);
   }
-}
+}

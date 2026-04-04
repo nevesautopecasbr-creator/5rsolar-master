@@ -38,8 +38,15 @@ describe("post proposal flow", () => {
       saveBuffer: jest.fn(),
     };
     const workflow = { transition: jest.fn() };
+    const documentTemplates = { getActiveByType: jest.fn().mockResolvedValue(null) };
     Object.assign(prisma, overrides);
-    return new PostProposalService(prisma as any, audit as any, files as any, workflow as any);
+    return new PostProposalService(
+      prisma as any,
+      audit as any,
+      files as any,
+      workflow as any,
+      documentTemplates as any,
+    );
   }
 
   it("throws when workflow returns pending on start", async () => {

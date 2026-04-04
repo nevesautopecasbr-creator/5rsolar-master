@@ -151,6 +151,11 @@ enum TicketPriority {
   URGENT
 }
 
+enum DocumentTemplateType {
+  CONTRACT
+  PROPOSAL
+}
+
 /// Perfis 5R: controle de acesso para entrada de leads (Vendedor externo, Tráfego pago, Diretores).
 enum UserProfile {
   VENDEDOR_EXTERNO
@@ -206,6 +211,7 @@ model Company {
   projects      Project[]
   contracts     Contract[]
   contractTemplates ContractTemplate[]
+  documentTemplates DocumentTemplate[]
   purchaseRequests PurchaseRequest[]
   purchaseQuotes  PurchaseQuote[]
   purchases     PurchaseOrder[]
@@ -719,6 +725,27 @@ model ContractTemplate {
   contracts Contract[]
 
   @@index([companyId])
+}
+
+model DocumentTemplate {
+  id        String               @id @default(uuid()) @db.Uuid
+  companyId String?              @db.Uuid
+  name      String
+  type      DocumentTemplateType
+  content   String
+  version   Int                  @default(1)
+  isActive  Boolean              @default(true)
+  isDefault Boolean              @default(false)
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+  createdById String?            @db.Uuid
+  updatedById String?            @db.Uuid
+
+  company Company? @relation(fields: [companyId], references: [id])
+
+  @@index([companyId])
+  @@index([type])
+  @@index([companyId, type, isActive])
 }
 
 model Contract {

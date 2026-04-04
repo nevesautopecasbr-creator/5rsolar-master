@@ -15,7 +15,29 @@ export class CustomersService {
     private readonly audit: AuditService,
   ) {}
 
-  async findAll(companyId?: string) {
+  async findAll(companyId?: string, q?: string) {
+    const normalizedQ = (q ?? "").trim();
+    if (normalizedQ) {
+      return this.prisma.customer.findMany({
+        where: {
+          ...(companyId ? { companyId } : {}),
+          name: { contains: normalizedQ, mode: "insensitive" },
+        },
+        take: 10,
+        select: {
+          id: true,
+          name: true,
+          document: true,
+          phone: true,
+          email: true,
+          consumerUnits: {
+            take: 1,
+            select: { consumerUnitCode: true, currentConsumptionKwh: true },
+          },
+        },
+      });
+    }
+
     return this.prisma.customer.findMany({
       where: companyId ? { companyId } : undefined,
       include: { consumerUnits: true },
