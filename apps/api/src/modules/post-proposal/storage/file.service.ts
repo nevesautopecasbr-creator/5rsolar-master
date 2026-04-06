@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { promises as fs } from "node:fs";
-import path from "node:path";
+import * as path from "node:path";
 
 export type SaveResult = {
   fileUrl: string;
