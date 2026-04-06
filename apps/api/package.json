@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "nest start --watch",
     "build": "prisma generate && nest build",
-    "start": "npx puppeteer browsers install chrome && prisma migrate deploy && node dist/main.js",
-    "start:prod": "npx puppeteer browsers install chrome && prisma migrate deploy && node dist/main.js",
+    "start": "prisma migrate deploy && node dist/main.js",
+    "start:prod": "prisma migrate deploy && node dist/main.js",
     "lint": "eslint .",
     "format": "prettier --check .",
     "typecheck": "tsc -p tsconfig.json --noEmit",
@@ -37,7 +37,6 @@
     "ioredis": "5.4.1",
     "passport": "0.7.0",
     "passport-jwt": "4.0.1",
-    "puppeteer": "^24.40.0",
     "reflect-metadata": "0.2.2",
     "rxjs": "7.8.1"
   },

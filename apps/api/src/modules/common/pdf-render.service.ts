@@ -1,63 +1,120 @@
 import { Injectable } from "@nestjs/common";
-import puppeteer from "puppeteer";
 
 @Injectable()
 export class PdfRenderService {
   async renderHtmlToPdf(html: string, title: string): Promise<Buffer> {
-    const browser = await puppeteer.launch({
-      headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
-    });
-    try {
-      const page = await browser.newPage();
-      await page.setContent(this.wrapHtml(html, title), { waitUntil: "networkidle0" });
-      const pdf = await page.pdf({
-        format: "A4",
-        printBackground: true,
-        margin: { top: "24mm", right: "16mm", bottom: "20mm", left: "16mm" },
-      });
-      return Buffer.from(pdf);
-    } finally {
-      await browser.close();
-    }
+    const plainText = this.htmlToText(html);
+    return this.buildSimplePdf(plainText, title);
   }
 
-  private wrapHtml(bodyHtml: string, title: string): string {
-    return `<!DOCTYPE html>
-<html lang="pt-BR">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>${this.escapeHtml(title)}</title>
-    <style>
-      body {
-        font-family: Arial, Helvetica, sans-serif;
-        color: #1f2937;
-        line-height: 1.5;
-        font-size: 12px;
+  private htmlToText(html: string): string {
+    const withBreaks = html
+      .replace(/<(br|BR)\s*\/?>/g, "\n")
+      .replace(/<\/(p|div|h1|h2|h3|h4|h5|h6|tr)>/gi, "\n\n")
+      .replace(/<\/(li)>/gi, "\n")
+      .replace(/<(li)[^>]*>/gi, "• ")
+      .replace(/<(td|th)[^>]*>/gi, " ")
+      .replace(/<\/(td|th)>/gi, " | ")
+      .replace(/<[^>]+>/g, " ");
+    return this.decodeHtmlEntities(withBreaks)
+      .replace(/\r/g, "")
+      .replace(/[ \t]+\n/g, "\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .replace(/[ \t]{2,}/g, " ")
+      .trim();
+  }
+
+  private decodeHtmlEntities(value: string): string {
+    const named: Record<string, string> = {
+      amp: "&",
+      lt: "<",
+      gt: ">",
+      quot: '"',
+      apos: "'",
+      nbsp: " ",
+      ccedil: "ç",
+      Ccedil: "Ç",
+      aacute: "á",
+      Aacute: "Á",
+      eacute: "é",
+      Eacute: "É",
+      iacute: "í",
+      Iacute: "Í",
+      oacute: "ó",
+      Oacute: "Ó",
+      uacute: "ú",
+      Uacute: "Ú",
+      atilde: "ã",
+      Atilde: "Ã",
+      otilde: "õ",
+      Otilde: "Õ",
+      agrave: "à",
+      Agrave: "À",
+      ecirc: "ê",
+      Ecirc: "Ê",
+      ocirc: "ô",
+      Ocirc: "Ô",
+    };
+    return value.replace(/&(#x?[0-9a-fA-F]+|[a-zA-Z]+);/g, (_match, entity: string) => {
+      if (entity.startsWith("#x") || entity.startsWith("#X")) {
+        const code = Number.parseInt(entity.slice(2), 16);
+        return Number.isFinite(code) ? String.fromCodePoint(code) : _match;
       }
-      h1, h2, h3 { margin: 0 0 8px; }
-      p { margin: 0 0 10px; }
-      ul, ol { margin: 0 0 10px 18px; }
-      table { width: 100%; border-collapse: collapse; margin: 8px 0 12px; }
-      th, td { border: 1px solid #d1d5db; padding: 6px 8px; text-align: left; vertical-align: top; }
-      img { max-width: 100%; height: auto; }
-      .doc-title { margin-bottom: 16px; font-size: 18px; font-weight: 700; }
-    </style>
-  </head>
-  <body>
-    <div class="doc-title">${this.escapeHtml(title)}</div>
-    ${bodyHtml}
-  </body>
-</html>`;
+      if (entity.startsWith("#")) {
+        const code = Number.parseInt(entity.slice(1), 10);
+        return Number.isFinite(code) ? String.fromCodePoint(code) : _match;
+      }
+      return named[entity] ?? _match;
+    });
   }
 
-  private escapeHtml(value: string): string {
-    return value
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#039;");
+  private buildSimplePdf(bodyText: string, title: string): Buffer {
+    const header = "%PDF-1.4\n";
+    const objects: string[] = [];
+    const lines = bodyText.slice(0, 12000).split("\n");
+    const pdfLines: string[] = [
+      "BT",
+      "/F1 11 Tf",
+      "50 800 Td",
+      `(${this.escapePdfText(title)}) Tj`,
+      "0 -16 Td",
+    ];
+    for (const line of lines) {
+      pdfLines.push(`(${this.escapePdfText(this.toPdfLatinText(line).slice(0, 110))}) Tj`, "0 -14 Td");
+    }
+    pdfLines.push("ET");
+    const contentLines = pdfLines.join("\n");
+    const content = `<< /Length ${contentLines.length} >>\nstream\n${contentLines}\nendstream`;
+    objects.push("1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n");
+    objects.push("2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n");
+    objects.push(
+      "3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>\nendobj\n",
+    );
+    objects.push(`4 0 obj\n${content}\nendobj\n`);
+    objects.push(
+      "5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n",
+    );
+    let offset = header.length;
+    const xref = ["xref", `0 ${objects.length + 1}`, "0000000000 65535 f "];
+    const body = objects
+      .map((obj) => {
+        const line = `${offset.toString().padStart(10, "0")} 00000 n `;
+        xref.push(line);
+        offset += obj.length;
+        return obj;
+      })
+      .join("");
+    const xrefOffset = header.length + body.length;
+    const trailer = `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+    return Buffer.from(`${header}${body}${xref.join("\n")}\n${trailer}`);
+  }
+
+  private escapePdfText(text: string) {
+    return text.replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
+  }
+
+  private toPdfLatinText(text: string): string {
+    // WinAnsi (Helvetica Type1) cobre acentuação PT-BR básica; substitui chars não representáveis.
+    return text.replace(/[^\x20-\x7E\xA0-\xFF]/g, "?");
   }
 }
