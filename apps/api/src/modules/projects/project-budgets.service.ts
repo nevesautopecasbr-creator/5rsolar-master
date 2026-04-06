@@ -7,6 +7,7 @@ import { FileService } from "../post-proposal/storage/file.service";
 import { CreateProjectBudgetDto } from "./dto/create-project-budget.dto";
 import { UpdateProjectBudgetDto } from "./dto/update-project-budget.dto";
 import { DocumentTemplatesService } from "../document-templates/document-templates.service";
+import { PdfRenderService } from "../common/pdf-render.service";
 
 @Injectable()
 export class ProjectBudgetsService {
@@ -15,6 +16,7 @@ export class ProjectBudgetsService {
     private readonly audit: AuditService,
     private readonly files: FileService,
     private readonly documentTemplates: DocumentTemplatesService,
+    private readonly pdfRender: PdfRenderService,
   ) {}
 
   /** Retorna dados do projeto/cliente para preencher o orçamento (consumo, UC, potência, nome do cliente) */
@@ -305,10 +307,12 @@ export class ProjectBudgetsService {
           notes: budget.notes ?? "-",
           productsList: productsLines || "-",
         })
-      : defaultText;
-    const text = renderedTemplate.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+      : this.defaultProposalHtml(defaultText);
 
-    const pdfBuffer = this.buildSimplePdf(text, "Proposta Comercial");
+    const pdfBuffer = await this.pdfRender.renderHtmlToPdf(
+      renderedTemplate,
+      "Proposta Comercial",
+    );
     const pdfResult = await this.files.saveBuffer(
       pdfBuffer,
       `proposta-${budget.id}.pdf`,
@@ -381,5 +385,20 @@ export class ProjectBudgetsService {
       const value = values[key];
       return value === undefined || value === null ? "-" : String(value);
     });
+  }
+
+  private defaultProposalHtml(text: string) {
+    const escaped = text
+      .split("\n")
+      .map((line) =>
+        line
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;"),
+      )
+      .join("<br />");
+    return `<p>${escaped}</p>`;
   }
 }

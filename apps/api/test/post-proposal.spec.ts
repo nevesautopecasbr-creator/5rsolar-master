@@ -39,6 +39,7 @@ describe("post proposal flow", () => {
     };
     const workflow = { transition: jest.fn() };
     const documentTemplates = { getActiveByType: jest.fn().mockResolvedValue(null) };
+    const pdfRender = { renderHtmlToPdf: jest.fn().mockResolvedValue(Buffer.from("pdf")) };
     Object.assign(prisma, overrides);
     return new PostProposalService(
       prisma as any,
@@ -46,6 +47,7 @@ describe("post proposal flow", () => {
       files as any,
       workflow as any,
       documentTemplates as any,
+      pdfRender as any,
     );
   }
 

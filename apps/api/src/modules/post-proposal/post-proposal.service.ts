@@ -5,6 +5,7 @@ import { AuditService } from "../iam/audit.service";
 import { FileService } from "./storage/file.service";
 import { WorkflowEngineService } from "../workflow/workflow.service";
 import { DocumentTemplatesService } from "../document-templates/document-templates.service";
+import { PdfRenderService } from "../common/pdf-render.service";
 
 type Numberish = number | string | Prisma.Decimal | null | undefined;
 
@@ -28,6 +29,7 @@ export class PostProposalService {
     private readonly files: FileService,
     private readonly workflow: WorkflowEngineService,
     private readonly documentTemplates: DocumentTemplatesService,
+    private readonly pdfRender: PdfRenderService,
   ) {}
 
   private toNumber(value: Numberish) {
@@ -599,57 +601,8 @@ export class PostProposalService {
       ...contract,
       template: activeTemplate ? { content: activeTemplate.content } : contract.template,
     };
-    const text = this.renderContractHtml(templateAwareContract, signedName)
-      .replace(/<[^>]+>/g, " ")
-      .replace(/\s+/g, " ")
-      .trim();
-    const header = "%PDF-1.4\n";
-    const objects: string[] = [];
-
-    const docTitle =
-      signedName && signedName !== "-" ? "Contrato Assinado" : "Contrato";
-    const contentLines = [
-      "BT",
-      "/F1 12 Tf",
-      "50 780 Td",
-      `(${this.escapePdfText(docTitle)}) Tj`,
-      "0 -18 Td",
-      `(${this.escapePdfText(text.slice(0, 900))}) Tj`,
-      "0 -18 Td",
-      `(Assinado por: ${this.escapePdfText(signedName)}) Tj`,
-      "ET",
-    ].join("\n");
-
-    const content = `<< /Length ${contentLines.length} >>\nstream\n${contentLines}\nendstream`;
-
-    objects.push("1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n");
-    objects.push("2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n");
-    objects.push(
-      "3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>\nendobj\n",
-    );
-    objects.push(`4 0 obj\n${content}\nendobj\n`);
-    objects.push(
-      "5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n",
-    );
-
-    let offset = header.length;
-    const xref = ["xref", `0 ${objects.length + 1}`, "0000000000 65535 f "];
-    const body = objects
-      .map((obj) => {
-        const line = `${offset.toString().padStart(10, "0")} 00000 n `;
-        xref.push(line);
-        offset += obj.length;
-        return obj;
-      })
-      .join("");
-
-    const xrefOffset = header.length + body.length;
-    const trailer = `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
-
-    return Buffer.from(`${header}${body}${xref.join("\n")}\n${trailer}`);
-  }
-
-  private escapePdfText(text: string) {
-    return text.replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
+    const html = this.renderContractHtml(templateAwareContract, signedName);
+    const docTitle = signedName && signedName !== "-" ? "Contrato Assinado" : "Contrato";
+    return this.pdfRender.renderHtmlToPdf(html, docTitle);
   }
 }

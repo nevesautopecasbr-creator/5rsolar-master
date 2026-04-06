@@ -7,9 +7,10 @@ import { SolarSimulatorController } from "./solar-simulator.controller";
 import { SolarSimulatorService } from "./solar-simulator.service";
 import { PostProposalModule } from "../post-proposal/post-proposal.module";
 import { DocumentTemplatesModule } from "../document-templates/document-templates.module";
+import { CommonModule } from "../common/common.module";
 
 @Module({
-  imports: [PostProposalModule, DocumentTemplatesModule],
+  imports: [PostProposalModule, DocumentTemplatesModule, CommonModule],
   controllers: [ProjectsController, ProjectBudgetsController, SolarSimulatorController],
   providers: [ProjectsService, ProjectBudgetsService, SolarSimulatorService],
 })
