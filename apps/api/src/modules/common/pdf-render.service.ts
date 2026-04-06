@@ -1,10 +1,11 @@
 import { Injectable } from "@nestjs/common";
+import PDFDocument from "pdfkit";
 
 @Injectable()
 export class PdfRenderService {
   async renderHtmlToPdf(html: string, title: string): Promise<Buffer> {
     const plainText = this.htmlToText(html);
-    return this.buildSimplePdf(plainText, title);
+    return this.buildPdfWithLayout(plainText, title);
   }
 
   private htmlToText(html: string): string {
@@ -68,53 +69,37 @@ export class PdfRenderService {
     });
   }
 
-  private buildSimplePdf(bodyText: string, title: string): Buffer {
-    const header = "%PDF-1.4\n";
-    const objects: string[] = [];
-    const lines = bodyText.slice(0, 12000).split("\n");
-    const pdfLines: string[] = [
-      "BT",
-      "/F1 11 Tf",
-      "50 800 Td",
-      `(${this.escapePdfText(title)}) Tj`,
-      "0 -16 Td",
-    ];
-    for (const line of lines) {
-      pdfLines.push(`(${this.escapePdfText(this.toPdfLatinText(line).slice(0, 110))}) Tj`, "0 -14 Td");
-    }
-    pdfLines.push("ET");
-    const contentLines = pdfLines.join("\n");
-    const content = `<< /Length ${contentLines.length} >>\nstream\n${contentLines}\nendstream`;
-    objects.push("1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n");
-    objects.push("2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n");
-    objects.push(
-      "3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>\nendobj\n",
-    );
-    objects.push(`4 0 obj\n${content}\nendobj\n`);
-    objects.push(
-      "5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n",
-    );
-    let offset = header.length;
-    const xref = ["xref", `0 ${objects.length + 1}`, "0000000000 65535 f "];
-    const body = objects
-      .map((obj) => {
-        const line = `${offset.toString().padStart(10, "0")} 00000 n `;
-        xref.push(line);
-        offset += obj.length;
-        return obj;
-      })
-      .join("");
-    const xrefOffset = header.length + body.length;
-    const trailer = `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
-    return Buffer.from(`${header}${body}${xref.join("\n")}\n${trailer}`);
-  }
+  private buildPdfWithLayout(bodyText: string, title: string): Promise<Buffer> {
+    return new Promise<Buffer>((resolve, reject) => {
+      const doc = new PDFDocument({
+        size: "A4",
+        margin: 48,
+        info: { Title: title },
+      });
+      const chunks: Buffer[] = [];
+      doc.on("data", (chunk: Buffer) => chunks.push(chunk));
+      doc.on("end", () => resolve(Buffer.concat(chunks)));
+      doc.on("error", (error) => reject(error));
 
-  private escapePdfText(text: string) {
-    return text.replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
-  }
+      doc.font("Helvetica-Bold").fontSize(16).text(title, { align: "left" });
+      doc.moveDown(1);
 
-  private toPdfLatinText(text: string): string {
-    // WinAnsi (Helvetica Type1) cobre acentuação PT-BR básica; substitui chars não representáveis.
-    return text.replace(/[^\x20-\x7E\xA0-\xFF]/g, "?");
+      const paragraphs = bodyText.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
+      doc.font("Helvetica").fontSize(11);
+      for (const paragraph of paragraphs) {
+        const normalized = paragraph
+          .split("\n")
+          .map((line) => line.trim())
+          .filter(Boolean)
+          .join("\n");
+        doc.text(normalized, {
+          width: doc.page.width - doc.page.margins.left - doc.page.margins.right,
+          lineGap: 2,
+          paragraphGap: 8,
+        });
+      }
+
+      doc.end();
+    });
   }
 }
