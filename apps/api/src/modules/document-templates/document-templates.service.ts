@@ -143,15 +143,23 @@ export class DocumentTemplatesService {
   }
 
   async getActiveByType(type: DocumentTemplateType, companyId?: string) {
-    const active = await this.prisma.documentTemplate.findFirst({
-      where: { ...(companyId ? { companyId } : {}), type, isActive: true },
-      orderBy: { updatedAt: "desc" },
-    });
-    if (active) return active;
-    return this.prisma.documentTemplate.findFirst({
-      where: { ...(companyId ? { companyId } : {}), type },
-      orderBy: { updatedAt: "desc" },
-    });
+    try {
+      const active = await this.prisma.documentTemplate.findFirst({
+        where: { ...(companyId ? { companyId } : {}), type, isActive: true },
+        orderBy: { updatedAt: "desc" },
+      });
+      if (active) return active;
+      return this.prisma.documentTemplate.findFirst({
+        where: { ...(companyId ? { companyId } : {}), type },
+        orderBy: { updatedAt: "desc" },
+      });
+    } catch (error) {
+      if (this.isMissingDocumentTemplateTable(error)) {
+        // Fallback para ambientes sem migração aplicada ainda.
+        return null;
+      }
+      throw error;
+    }
   }
 
   getVariables(type: DocumentTemplateType): VariableItem[] {
@@ -218,5 +226,16 @@ export class DocumentTemplatesService {
       where: { ...(companyId ? { companyId } : {}), type, isDefault: true },
       data: { isDefault: false },
     });
+  }
+
+  private isMissingDocumentTemplateTable(error: unknown): boolean {
+    const message =
+      typeof error === "object" && error && "message" in error
+        ? String((error as { message?: unknown }).message ?? "")
+        : "";
+    return (
+      message.includes("DocumentTemplate") &&
+      (message.includes("does not exist") || message.includes("P2021"))
+    );
   }
 }
