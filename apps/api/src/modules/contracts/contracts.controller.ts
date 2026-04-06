@@ -18,13 +18,17 @@ import { ContractsService } from "./contracts.service";
 import { CreateContractDto } from "./dto/create-contract.dto";
 import { UpdateContractDto } from "./dto/update-contract.dto";
 import { CreateAddendumDto } from "./dto/create-addendum.dto";
+import { PostProposalService } from "../post-proposal/post-proposal.service";
 
 @ApiTags("Contratos")
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller("contracts")
 export class ContractsController {
-  constructor(private readonly contractsService: ContractsService) {}
+  constructor(
+    private readonly contractsService: ContractsService,
+    private readonly postProposal: PostProposalService,
+  ) {}
 
   @Get()
   @Permissions("contratos.read")
@@ -45,6 +49,16 @@ export class ContractsController {
   @Permissions("contratos.read")
   findOne(@Param("id") id: string, @CompanyId() companyId?: string) {
     return this.contractsService.findOne(id, companyId);
+  }
+
+  @Post(":id/generate-pdf")
+  @Permissions("contratos.write")
+  generateContractPdf(
+    @Param("id") id: string,
+    @CompanyId() companyId: string | undefined,
+    @CurrentUser() user: { sub: string },
+  ) {
+    return this.postProposal.generateContractPdfFromTemplate(id, companyId, user?.sub);
   }
 
   @Post()
@@ -87,4 +101,4 @@ export class ContractsController {
   ) {
     return this.contractsService.addAddendum(id, dto, user?.sub);
   }
-}
+}

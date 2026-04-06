@@ -230,6 +230,54 @@ export class PostProposalService {
   }
 
   /**
+   * Gera PDF do contrato com o template CONTRACT ativo (DocumentTemplate), grava URL e retorna o contrato.
+   */
+  async generateContractPdfFromTemplate(
+    contractId: string,
+    companyId?: string,
+    actorId?: string,
+  ) {
+    const contract = await this.prisma.contract.findFirst({
+      where: { id: contractId, ...(companyId ? { companyId } : {}) },
+      include: { customer: true, project: true, template: true },
+    });
+    if (!contract) {
+      throw new NotFoundException("Contrato não encontrado");
+    }
+
+    const signedName = contract.signedName?.trim() || "-";
+    const pdfContent = await this.generateContractPdf(contract, signedName, companyId);
+    const pdfResult = await this.files.saveBuffer(
+      pdfContent,
+      `contract-${contract.id}.pdf`,
+    );
+
+    await this.prisma.contract.update({
+      where: { id: contract.id },
+      data: { contractPdfUrl: pdfResult.fileUrl, updatedById: actorId },
+    });
+
+    await this.audit.log({
+      actorId,
+      companyId: contract.companyId ?? undefined,
+      entityName: "Contract",
+      entityId: contract.id,
+      action: "GENERATE_CONTRACT_PDF",
+      payload: { contractPdfUrl: pdfResult.fileUrl },
+    });
+
+    return this.prisma.contract.findFirst({
+      where: { id: contract.id, ...(companyId ? { companyId } : {}) },
+      include: {
+        project: true,
+        customer: true,
+        receivables: true,
+        addenda: true,
+      },
+    });
+  }
+
+  /**
    * Dispara a emissão dos PDFs "Contrato de Compra e Venda" e "Contrato de Prestação de Serviço"
    * após fechamento/aceite do orçamento. Deve ser chamado logo após o fechamento bem-sucedido no banco.
    */
@@ -558,11 +606,13 @@ export class PostProposalService {
     const header = "%PDF-1.4\n";
     const objects: string[] = [];
 
+    const docTitle =
+      signedName && signedName !== "-" ? "Contrato Assinado" : "Contrato";
     const contentLines = [
       "BT",
       "/F1 12 Tf",
       "50 780 Td",
-      "(Contrato Assinado) Tj",
+      `(${this.escapePdfText(docTitle)}) Tj`,
       "0 -18 Td",
       `(${this.escapePdfText(text.slice(0, 900))}) Tj`,
       "0 -18 Td",
