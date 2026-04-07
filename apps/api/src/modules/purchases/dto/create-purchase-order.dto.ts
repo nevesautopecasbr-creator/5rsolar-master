@@ -1,5 +1,5 @@
 import { PurchaseStatus } from "@prisma/client";
-import { Type } from "class-transformer";
+import { Transform, Type } from "class-transformer";
 import {
   IsArray,
   IsDateString,
@@ -8,20 +8,29 @@ import {
   IsString,
   ValidateNested,
   IsNumber,
+  IsUUID,
 } from "class-validator";
 import { PurchaseItemDto } from "./purchase-item.dto";
 
+function emptyToUndefined({ value }: { value: unknown }) {
+  if (value === "" || value === null) return undefined;
+  return value;
+}
+
 export class CreatePurchaseOrderDto {
   @IsOptional()
-  @IsString()
+  @Transform(emptyToUndefined)
+  @IsUUID("4")
   quoteId?: string;
 
   @IsOptional()
-  @IsString()
+  @Transform(emptyToUndefined)
+  @IsUUID("4")
   supplierId?: string;
 
   @IsOptional()
-  @IsString()
+  @Transform(emptyToUndefined)
+  @IsUUID("4")
   projectId?: string;
 
   @IsOptional()
@@ -38,6 +47,7 @@ export class CreatePurchaseOrderDto {
   notes?: string;
 
   @IsOptional()
+  @Transform(emptyToUndefined)
   @IsDateString()
   payableDueDate?: string;
 
@@ -46,4 +56,4 @@ export class CreatePurchaseOrderDto {
   @ValidateNested({ each: true })
   @Type(() => PurchaseItemDto)
   items?: PurchaseItemDto[];
-}
+}
