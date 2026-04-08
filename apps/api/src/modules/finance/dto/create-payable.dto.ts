@@ -8,6 +8,7 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  IsUUID,
 } from "class-validator";
 
 function toNumber(v: unknown): number {
@@ -51,21 +52,30 @@ function normalizePaymentMethod(v: unknown): string | undefined {
   return raw;
 }
 
+function emptyToUndefined({ value }: { value: unknown }) {
+  if (value === "" || value == null) return undefined;
+  return value;
+}
+
 export class CreatePayableDto {
   @IsOptional()
-  @IsString()
+  @Transform(emptyToUndefined)
+  @IsUUID("4")
   projectId?: string;
 
   @IsOptional()
-  @IsString()
+  @Transform(emptyToUndefined)
+  @IsUUID("4")
   supplierId?: string;
 
   @IsOptional()
-  @IsString()
+  @Transform(emptyToUndefined)
+  @IsUUID("4")
   purchaseOrderId?: string;
 
   @IsOptional()
-  @IsString()
+  @Transform(emptyToUndefined)
+  @IsUUID("4")
   accountId?: string;
 
   @IsString()
@@ -82,7 +92,6 @@ export class CreatePayableDto {
   @IsOptional()
   @Transform(({ value }) => normalizePayableStatus(value))
   @IsEnum(PayableStatus)
-  @IsIn([PayableStatus.OPEN, PayableStatus.PAID])
   status?: PayableStatus;
 
   @IsOptional()

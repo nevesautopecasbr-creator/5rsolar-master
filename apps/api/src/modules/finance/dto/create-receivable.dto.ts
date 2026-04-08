@@ -1,28 +1,38 @@
 import { ReceivableStatus } from "@prisma/client";
-import { Type } from "class-transformer";
+import { Transform, Type } from "class-transformer";
 import {
   IsDateString,
   IsEnum,
   IsOptional,
   IsString,
   IsNumber,
+  IsUUID,
 } from "class-validator";
+
+function emptyToUndefined({ value }: { value: unknown }) {
+  if (value === "" || value == null) return undefined;
+  return value;
+}
 
 export class CreateReceivableDto {
   @IsOptional()
-  @IsString()
+  @Transform(emptyToUndefined)
+  @IsUUID("4")
   projectId?: string;
 
   @IsOptional()
-  @IsString()
+  @Transform(emptyToUndefined)
+  @IsUUID("4")
   customerId?: string;
 
   @IsOptional()
-  @IsString()
+  @Transform(emptyToUndefined)
+  @IsUUID("4")
   contractId?: string;
 
   @IsOptional()
-  @IsString()
+  @Transform(emptyToUndefined)
+  @IsUUID("4")
   accountId?: string;
 
   @IsString()
@@ -56,4 +66,4 @@ export class CreateReceivableDto {
   @Type(() => Number)
   @IsNumber()
   totalInstallments?: number;
-}
+}

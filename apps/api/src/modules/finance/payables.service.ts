@@ -1,4 +1,5 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CreatePayableDto } from "./dto/create-payable.dto";
 import { UpdatePayableDto } from "./dto/update-payable.dto";
@@ -32,37 +33,46 @@ export class PayablesService {
     dto: CreatePayableDto,
     actorId?: string,
   ) {
-    const created = await this.prisma.payable.create({
-      data: {
+    try {
+      const created = await this.prisma.payable.create({
+        data: {
+          companyId,
+          projectId: dto.projectId,
+          supplierId: dto.supplierId,
+          purchaseOrderId: dto.purchaseOrderId,
+          accountId: dto.accountId,
+          description: dto.description,
+          amount: dto.amount,
+          dueDate: new Date(dto.dueDate),
+          status: dto.status,
+          paidAt: dto.paidAt ? new Date(dto.paidAt) : undefined,
+          paymentMethod: dto.paymentMethod,
+          isDirectCost: dto.isDirectCost ?? false,
+          type: dto.type,
+          recurrenceRule: dto.recurrenceRule,
+          nextDueDate: dto.nextDueDate ? new Date(dto.nextDueDate) : undefined,
+          createdById: actorId,
+        },
+      });
+
+      await this.audit.log({
+        actorId,
         companyId,
-        projectId: dto.projectId,
-        supplierId: dto.supplierId,
-        purchaseOrderId: dto.purchaseOrderId,
-        accountId: dto.accountId,
-        description: dto.description,
-        amount: dto.amount,
-        dueDate: new Date(dto.dueDate),
-        status: dto.status,
-        paidAt: dto.paidAt ? new Date(dto.paidAt) : undefined,
-        paymentMethod: dto.paymentMethod,
-        isDirectCost: dto.isDirectCost ?? false,
-        type: dto.type,
-        recurrenceRule: dto.recurrenceRule,
-        nextDueDate: dto.nextDueDate ? new Date(dto.nextDueDate) : undefined,
-        createdById: actorId,
-      },
-    });
+        entityName: "Payable",
+        entityId: created.id,
+        action: "CREATE",
+        payload: { amount: created.amount },
+      });
 
-    await this.audit.log({
-      actorId,
-      companyId,
-      entityName: "Payable",
-      entityId: created.id,
-      action: "CREATE",
-      payload: { amount: created.amount },
-    });
-
-    return created;
+      return created;
+    } catch (e) {
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2003") {
+        throw new BadRequestException(
+          "Referencia invalida: projeto, fornecedor, pedido ou conta contabil nao encontrado (ou ID incorreto).",
+        );
+      }
+      throw e;
+    }
   }
 
   async update(
@@ -118,4 +128,4 @@ export class PayablesService {
     });
     return deleted;
   }
-}
+}

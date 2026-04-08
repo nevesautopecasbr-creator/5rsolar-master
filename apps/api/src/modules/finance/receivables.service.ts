@@ -1,4 +1,5 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CreateReceivableDto } from "./dto/create-receivable.dto";
 import { UpdateReceivableDto } from "./dto/update-receivable.dto";
@@ -32,35 +33,44 @@ export class ReceivablesService {
     dto: CreateReceivableDto,
     actorId?: string,
   ) {
-    const created = await this.prisma.receivable.create({
-      data: {
+    try {
+      const created = await this.prisma.receivable.create({
+        data: {
+          companyId,
+          projectId: dto.projectId,
+          customerId: dto.customerId,
+          contractId: dto.contractId,
+          accountId: dto.accountId,
+          description: dto.description,
+          amount: dto.amount,
+          dueDate: new Date(dto.dueDate),
+          status: dto.status,
+          receivedAt: dto.receivedAt ? new Date(dto.receivedAt) : undefined,
+          paymentMethod: dto.paymentMethod,
+          installmentNo: dto.installmentNo,
+          totalInstallments: dto.totalInstallments,
+          createdById: actorId,
+        },
+      });
+
+      await this.audit.log({
+        actorId,
         companyId,
-        projectId: dto.projectId,
-        customerId: dto.customerId,
-        contractId: dto.contractId,
-        accountId: dto.accountId,
-        description: dto.description,
-        amount: dto.amount,
-        dueDate: new Date(dto.dueDate),
-        status: dto.status,
-        receivedAt: dto.receivedAt ? new Date(dto.receivedAt) : undefined,
-        paymentMethod: dto.paymentMethod,
-        installmentNo: dto.installmentNo,
-        totalInstallments: dto.totalInstallments,
-        createdById: actorId,
-      },
-    });
+        entityName: "Receivable",
+        entityId: created.id,
+        action: "CREATE",
+        payload: { amount: created.amount },
+      });
 
-    await this.audit.log({
-      actorId,
-      companyId,
-      entityName: "Receivable",
-      entityId: created.id,
-      action: "CREATE",
-      payload: { amount: created.amount },
-    });
-
-    return created;
+      return created;
+    } catch (e) {
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2003") {
+        throw new BadRequestException(
+          "Referencia invalida: projeto, cliente, contrato ou conta contabil nao encontrado (ou ID incorreto).",
+        );
+      }
+      throw e;
+    }
   }
 
   async update(
@@ -114,4 +124,4 @@ export class ReceivablesService {
     });
     return deleted;
   }
-}
+}
