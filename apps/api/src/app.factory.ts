@@ -5,6 +5,7 @@ import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import * as cookieParser from "cookie-parser";
 import { join } from "node:path";
 import { AppModule } from "./app.module";
+import { buildWebAllowedOrigins } from "./cors-allowed-origins";
 
 /**
  * Cria a aplicação NestJS com toda a configuração (CORS, pipes, Swagger).
@@ -15,18 +16,7 @@ export async function createApp(): Promise<NestExpressApplication> {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   app.setGlobalPrefix("api");
 
-  const envOrigins = [
-    process.env.WEB_ORIGIN ?? "",
-    ...(process.env.WEB_ORIGINS?.split(",") ?? []),
-  ]
-    .map((origin) => origin.trim())
-    .filter(Boolean);
-  const allowedOrigins = new Set<string>([
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "https://5rsolar-web.vercel.app",
-    ...envOrigins,
-  ]);
+  const allowedOrigins = buildWebAllowedOrigins();
 
   app.enableCors({
     origin: (origin, callback) => {

@@ -1,12 +1,17 @@
 import { Injectable, NestMiddleware } from "@nestjs/common";
 import { Request, Response, NextFunction } from "express";
-
-const ALLOWED_ORIGIN = "https://5rsolar-web.vercel.app";
+import { buildWebAllowedOrigins } from "./cors-allowed-origins";
 
 @Injectable()
 export class CorsPreflightMiddleware implements NestMiddleware {
   use(req: Request, res: Response, next: NextFunction) {
-    res.setHeader("Access-Control-Allow-Origin", ALLOWED_ORIGIN);
+    const allowed = buildWebAllowedOrigins();
+    const origin = req.headers.origin as string | undefined;
+
+    if (origin && allowed.has(origin)) {
+      res.setHeader("Access-Control-Allow-Origin", origin);
+    }
+
     res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
     res.setHeader(
       "Access-Control-Allow-Headers",
