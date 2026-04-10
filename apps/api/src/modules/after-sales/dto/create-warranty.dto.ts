@@ -1,12 +1,20 @@
-import { IsDateString, IsOptional, IsString } from "class-validator";
+import { Transform } from "class-transformer";
+import { IsDateString, IsOptional, IsString, IsUUID } from "class-validator";
+
+function emptyToUndefined({ value }: { value: unknown }) {
+  if (value === "" || value == null) return undefined;
+  return value;
+}
 
 export class CreateWarrantyDto {
   @IsOptional()
-  @IsString()
+  @Transform(emptyToUndefined)
+  @IsUUID("4")
   customerId?: string;
 
   @IsOptional()
-  @IsString()
+  @Transform(emptyToUndefined)
+  @IsUUID("4")
   projectId?: string;
 
   @IsDateString()
@@ -16,6 +24,7 @@ export class CreateWarrantyDto {
   endDate: string;
 
   @IsOptional()
+  @Transform(emptyToUndefined)
   @IsString()
   terms?: string;
 }

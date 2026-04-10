@@ -33,6 +33,22 @@ export class ReceivablesService {
     dto: CreateReceivableDto,
     actorId?: string,
   ) {
+    if (dto.amount == null || Number.isNaN(Number(dto.amount))) {
+      throw new BadRequestException("Valor inválido.");
+    }
+
+    const due = new Date(dto.dueDate);
+    if (Number.isNaN(due.getTime())) {
+      throw new BadRequestException("Data de vencimento inválida.");
+    }
+    let receivedAt: Date | undefined;
+    if (dto.receivedAt) {
+      receivedAt = new Date(dto.receivedAt);
+      if (Number.isNaN(receivedAt.getTime())) {
+        throw new BadRequestException("Data de recebimento inválida.");
+      }
+    }
+
     try {
       const created = await this.prisma.receivable.create({
         data: {
@@ -43,9 +59,9 @@ export class ReceivablesService {
           accountId: dto.accountId,
           description: dto.description,
           amount: dto.amount,
-          dueDate: new Date(dto.dueDate),
+          dueDate: due,
           status: dto.status,
-          receivedAt: dto.receivedAt ? new Date(dto.receivedAt) : undefined,
+          receivedAt,
           paymentMethod: dto.paymentMethod,
           installmentNo: dto.installmentNo,
           totalInstallments: dto.totalInstallments,

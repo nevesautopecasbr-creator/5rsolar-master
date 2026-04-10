@@ -50,10 +50,12 @@ export class CreateReceivableDto {
   status?: ReceivableStatus;
 
   @IsOptional()
+  @Transform(emptyToUndefined)
   @IsDateString()
   receivedAt?: string;
 
   @IsOptional()
+  @Transform(emptyToUndefined)
   @IsString()
   paymentMethod?: string;
 

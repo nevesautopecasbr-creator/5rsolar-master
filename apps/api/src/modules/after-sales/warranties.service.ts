@@ -1,4 +1,5 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CreateWarrantyDto } from "./dto/create-warranty.dto";
 import { UpdateWarrantyDto } from "./dto/update-warranty.dto";
@@ -32,28 +33,46 @@ export class WarrantiesService {
     dto: CreateWarrantyDto,
     actorId?: string,
   ) {
-    const created = await this.prisma.warranty.create({
-      data: {
+    const start = new Date(dto.startDate);
+    const end = new Date(dto.endDate);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+      throw new BadRequestException("Datas de início ou fim inválidas.");
+    }
+    if (end < start) {
+      throw new BadRequestException("A data final deve ser igual ou posterior à data inicial.");
+    }
+
+    try {
+      const created = await this.prisma.warranty.create({
+        data: {
+          companyId,
+          customerId: dto.customerId,
+          projectId: dto.projectId,
+          startDate: start,
+          endDate: end,
+          terms: dto.terms,
+          createdById: actorId,
+        },
+      });
+
+      await this.audit.log({
+        actorId,
         companyId,
-        customerId: dto.customerId,
-        projectId: dto.projectId,
-        startDate: new Date(dto.startDate),
-        endDate: new Date(dto.endDate),
-        terms: dto.terms,
-        createdById: actorId,
-      },
-    });
+        entityName: "Warranty",
+        entityId: created.id,
+        action: "CREATE",
+        payload: { startDate: created.startDate },
+      });
 
-    await this.audit.log({
-      actorId,
-      companyId,
-      entityName: "Warranty",
-      entityId: created.id,
-      action: "CREATE",
-      payload: { startDate: created.startDate },
-    });
-
-    return created;
+      return created;
+    } catch (e) {
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2003") {
+        throw new BadRequestException(
+          "Referência inválida: cliente ou projeto não encontrado (ou ID incorreto).",
+        );
+      }
+      throw e;
+    }
   }
 
   async update(
@@ -99,4 +118,4 @@ export class WarrantiesService {
     });
     return deleted;
   }
-}
+}

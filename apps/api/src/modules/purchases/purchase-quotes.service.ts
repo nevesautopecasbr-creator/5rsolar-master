@@ -12,10 +12,18 @@ export class PurchaseQuotesService {
   ) {}
 
   async findAll(companyId?: string) {
-    return this.prisma.purchaseQuote.findMany({
+    const rows = await this.prisma.purchaseQuote.findMany({
       where: companyId ? { companyId } : undefined,
       include: { items: true },
+      orderBy: { createdAt: "desc" },
     });
+    return rows.map((q) => ({
+      ...q,
+      /** Rótulo amigável para selects (ex.: novo pedido vinculado a cotação) */
+      label: q.notes?.trim()
+        ? `${q.notes.trim()} (${q.id.slice(0, 8)}…)`
+        : `Cotação ${q.id.slice(0, 8)}…`,
+    }));
   }
 
   async findOne(id: string, companyId?: string) {
