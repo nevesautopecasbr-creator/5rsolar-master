@@ -22,10 +22,7 @@ export async function createApp(): Promise<NestExpressApplication> {
     .map((origin) => origin.trim())
     .filter(Boolean);
   const allowedOrigins = new Set<string>([
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "https://5rsolar-web.vercel.app",
-    "https://web-5rsolar.vercel.app",
+        "https://web-5rsolar.vercel.app",
     ...envOrigins,
   ]);
 
