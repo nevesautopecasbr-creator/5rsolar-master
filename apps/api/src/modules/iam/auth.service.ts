@@ -87,28 +87,21 @@ export class AuthService {
   }
 
   async login(email: string, password: string) {
-    try {
-      const user = await this.prisma.user.findUnique({ where: { email } });
-      if (!user || !user.isActive) {
-        throw new UnauthorizedException("Credenciais inválidas");
-      }
-      const isValid = await bcrypt.compare(password, user.passwordHash);
-      if (!isValid) {
-        throw new UnauthorizedException("Credenciais inválidas");
-      }
-
-      const tokens = await this.issueTokens(user.id, user.email);
-      const userWithCompany = await this.getUserWithCompany(user.id);
-      return {
-        ...tokens,
-        user: userWithCompany ?? { id: user.id, name: user.name, email: user.email, companyId: null, companyName: null },
-      };
-    } catch (error) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/7c7a3af8-2979-4f40-9dcc-4e60fdd8a2be',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'modules/iam/auth.service.ts:78',message:'auth_login_error',data:{name:(error as Error)?.name,message:(error as Error)?.message},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'L6'})}).catch(()=>{});
-      // #endregion
-      throw error;
+    const user = await this.prisma.user.findUnique({ where: { email } });
+    if (!user || !user.isActive) {
+      throw new UnauthorizedException("Credenciais inválidas");
     }
+    const isValid = await bcrypt.compare(password, user.passwordHash);
+    if (!isValid) {
+      throw new UnauthorizedException("Credenciais inválidas");
+    }
+
+    const tokens = await this.issueTokens(user.id, user.email);
+    const userWithCompany = await this.getUserWithCompany(user.id);
+    return {
+      ...tokens,
+      user: userWithCompany ?? { id: user.id, name: user.name, email: user.email, companyId: null, companyName: null },
+    };
   }
 
   async register(name: string, email: string, phone: string, password: string) {

@@ -48,9 +48,9 @@ export class PermissionsGuard implements CanActivate {
     const userPermissions = new Set<string>();
     for (const userRole of userRoles) {
       for (const grant of userRole.role.grants) {
-        if (!companyId || !grant.permission.companyId || grant.permission.companyId === companyId) {
-          userPermissions.add(grant.permission.name);
-        }
+        // Permission.name é único no catálogo; o papel do usuário já está limitado pela empresa (UserRole.companyId).
+        // Filtrar de novo por permission.companyId quebrava perfis não-admin quando o registro Permission foi criado em outro tenant.
+        userPermissions.add(grant.permission.name);
       }
     }
 
